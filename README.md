@@ -2,7 +2,7 @@
 This is a pytorch implementation of [Hindsight Experience Replay](https://arxiv.org/abs/1707.01495). 
 
 # Fork Goal
-We intend to adapt this code to run efficiently on the NVIDIA Jetson line of integrated CPU / GPU single board computers.
+We intend to adapt this code to run efficiently on the NVIDIA Jetson line of integrated CPU / GPU single board computers with CUDA Acceleration.
 
 ## Acknowledgement:
 - [Openai Baselines](https://github.com/openai/baselines)
