@@ -113,3 +113,6 @@ venv.bak/
 
 *.log
 
+# ide directories
+.idea/
+.vscode/
