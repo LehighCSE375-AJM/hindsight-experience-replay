@@ -13,6 +13,7 @@ We intend to adapt this code to run efficiently on the NVIDIA Jetson line of int
 - mujoco-py=1.50.1.56 (~~**Please use this version, if you use mujoco200, you may failed in the FetchSlide-v1**~~)
 - pytorch=1.0.0 (**If you use pytorch-0.4.1, you may have data type errors. I will fix it later.**)
 - mpi4py
+- JetPack v4.4.1 (You may be able to go earlier by editing the Dockerfile to use a different version of l4t-pytorch)
 
 ## TODO List
 - [x] support GPU acceleration - although I have added GPU support, but I still not recommend if you don't have a powerful machine.
