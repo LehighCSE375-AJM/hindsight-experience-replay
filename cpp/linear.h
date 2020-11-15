@@ -4,6 +4,7 @@
 #include "matrix.h"
 #include <iostream>
 #include <random>
+#include <assert.h>
 
 using namespace std;
 
@@ -29,7 +30,12 @@ public:
         bias = new Matrix(1, out_features, [&](){return dis(gen);});
     }
 
+    ~linear() {
+        delete weights, bias;
+    }
+
     Matrix *multiply(Matrix *x) {
+        assert(x->width == _in_features);
         Matrix *out = new Matrix(x->height, _out_features, [&](int row, int column){
             return bias->values[column];
         });
