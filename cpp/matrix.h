@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <functional>
+#include <cmath>
+#include <assert.h>
 
 using namespace std;
 
@@ -31,12 +33,32 @@ public:
     initialize(height, width, initializer);
   }
 
-  Matrix* relu() {
-    Matrix *out = new Matrix(height, width, [&](int row, int column) {
-      int index = row * width + column;
-      return max(0., values[index]);
+  // Modifies matrix in-place
+  void relu() {
+    for (int i = 0; i < height * width; ++i) {
+      this->values[i] = max(0., values[i]);
+    }
+  }
+
+  // Modifies matrix in-place
+  void tanh() {
+    for (int i = 0; i < height * width; ++i) {
+      this->values[i] = std::tanh(this->values[i]);
+    }
+  }
+
+  // Concatonate to Matrix classes. They both MUST be vectors (Matrix with height 1)
+  // Could make sense to extend this is the future so 2d matrix's are supported, however, that
+  // isn't needed right now so I won't bother supporting it. 
+  static Matrix* vector_concat(Matrix *m1, Matrix *m2) {
+    assert(m1->height == 1);
+    assert(m2->height == 1);
+    return new Matrix(1, m1->width + m2->width, [&](int row, int column) {
+      if (column < m1->width) {
+        return m1->values[column];
+      }
+      return m2->values[column - m1->width];
     });
-    return out;
   }
 };
 
@@ -49,4 +71,30 @@ ostream& operator<<(ostream& os, const Matrix& m) {
     }
   }
   return os;
+}
+
+// Calculates the product of each individual element (does NOT multiply the matrix in typical matrix multiplication fashion.)
+// Resembles torch tensor * operator. 
+Matrix* operator*(const Matrix& m1, const Matrix& m2) {
+  assert(m1.height == m2.height);
+  assert(m1.width == m2.width);
+  // Possibly could be faster using blas, however the matricies that use
+  // this operator are so small anyways its probably not worth it. 
+  Matrix* out = new Matrix(m1.height, m1.width, [&](int row, int column) {
+    int index = row * m1.width + column;
+    return m1.values[index] * m2.values[index];
+  });
+  return out;
+}
+
+// Calculates the m1 / m2 for each individual element
+// Resembles torch tensor / operator. 
+Matrix* operator/(const Matrix& m1, const Matrix& m2) {
+  assert(m1.height == m2.height);
+  assert(m1.width == m2.width);
+  Matrix* out = new Matrix(m1.height, m1.width, [&](int row, int column) {
+    int index = row * m1.width + column;
+    return m1.values[index] / m2.values[index];
+  });
+  return out;
 }
