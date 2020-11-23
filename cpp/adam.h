@@ -19,7 +19,7 @@ private:
 			void zero_(); // Fill self with zeros
 		};
 		struct Adam_Group {
-			Tensor* params;
+			list<Tensor*> params;
 			double lr = 1E-3L;
 			double betas[2] = {0.9L, 0.999L};
 			double eps = 1E-8L;
@@ -29,35 +29,36 @@ private:
 		list<Adam_Group*> param_groups;
 		Adam_Group defaults;
 public:
-		// @param params should be an iterable of tensors of dicts
+
 		// @param lr is the learning rate, default 0.01
 		Adam(list<Matrix*> params, double lr = 1E-3L) {
 			Adam_Group* group = new Adam_Group();
 			group->lr = lr;
 
 			for (auto it = params.begin(); it != params.end(); ++it) {
-				Adam_Group* group = new Adam_Group();
-				group->lr = lr;
-
-				group->params = new Tensor();
-				group->params->data = *it;
-				
-				param_groups.push_back(group);
+				Tensor *input = new Tensor();
+				input->data = *it;
+				group->params.push_back(input);
 			}
+
+			param_groups.push_back(group);
 		}
 
-		// @param params should be an iterable of tensors of dicts
 		// @param lr is the learning rate, default 0.01
 		Adam(Matrix* params, double lr = 1E-3L) {
 			Adam_Group* group = new Adam_Group();
 			group->lr = lr;
 
-			group->params = new Tensor();
-			group->params->data = params;
+			Tensor *input = new Tensor();
+			input->data = params;
+			group->params.push_back(input);
 
 			param_groups.push_back(group);
 		}
 
+		/**
+		 * 
+		 */
 		void zero_grad(bool set_to_none = false) {
 			for (auto param_group = this->param_groups.begin(); param_group != this->param_groups.end(); ++param_group) {
 				/* for each param in param_group['params'] {
