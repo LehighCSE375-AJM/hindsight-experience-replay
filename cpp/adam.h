@@ -1,6 +1,12 @@
 #include "matrix.h"
 #include <list>
 
+
+/**
+ * Class meant to follow semantics of torch.optim.Adam
+ * found at https://pytorch.org/docs/stable/_modules/torch/optim/adam.html#Adam
+ * extends https://pytorch.org/docs/stable/_modules/torch/optim/optimizer.html#Optimizer
+ */
 class Adam {
 private:
 		list<Matrix*> param_groups;
@@ -22,7 +28,7 @@ public:
 
 		void zero_grad() {
 			for (auto it = this->param_groups.begin(); it != this->param_groups.end(); ++it) {
-
+				
 			}
 		}
 
