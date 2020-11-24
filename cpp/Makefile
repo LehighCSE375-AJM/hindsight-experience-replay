@@ -1,10 +1,10 @@
 program_NAME := a.out
 
 SRCS = learn.cc
-HDRS = linear.h models.h matrix.h
+HDRS = linear.h models.h matrix.h layer.h
 OBJS := ${SRCS:.c=.o}
 
-CFLAGS += -m64 -O3
+CFLAGS += -m64 -O3 -g
 
 program_INCLUDE_DIRS := /opt/openblas/include /opt/openblas/lib/libopenblas.dylib
 #program_LIBRARY_DIRS :=
