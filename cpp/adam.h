@@ -48,7 +48,7 @@ private:
 		Adam_Group defaults_;
 public:
 
-		// @param lr is the learning rate, default 0.01
+		// @param lr is the learning rate, default 0.001
 		Adam(vector<Matrix*> params, double lr = 1E-3L) {
 			Adam_Group* group = new Adam_Group();
 			group->lr = lr;
@@ -62,7 +62,7 @@ public:
 			this->param_groups_.push_back(group);
 		}
 
-		// @param lr is the learning rate, default 0.01
+		// @param lr is the learning rate, default 0.001
 		Adam(Matrix* params, double lr = 1E-3L) {
 			Adam_Group* group = new Adam_Group();
 			group->lr = lr;
@@ -91,57 +91,60 @@ public:
 			}
 		}
 
-	void Adam::step()  {
-		for (auto& group : this->param_groups_) {
-			for (auto& p : group->params) {
-				if (p->grad != nullptr) {
-					continue;
-				}
-
-				// State initialization
-				if(p->state == nullptr) {
-					auto state = new Adam_Param_State();
-					p->state->step = 0;
-					// Exponential moving average of gradient values
-
-					p->state->exp_avg = new Tensor();
-					p->state->exp_avg->data = &p->data->zeros();
-					p->state->exp_avg_sq->data = &p->data->zeros();
-
-					if(group->amsgrad) {
-						// Maintains max of all exp. moving avg. of sq. grad. values
-						state->max_exp_avg_sq->data = &p->data->zeros();
+		/**
+		 * Take one Adam step
+		 */
+		void Adam::step()  {
+			for (auto& group : this->param_groups_) {
+				for (auto& p : group->params) {
+					if (p->grad != nullptr) {
+						continue;
 					}
+
+					// State initialization
+					if(p->state == nullptr) {
+						auto state = new Adam_Param_State();
+						p->state->step = 0;
+						// Exponential moving average of gradient values
+
+						p->state->exp_avg = new Tensor();
+						p->state->exp_avg->data = &p->data->zeros();
+						p->state->exp_avg_sq->data = &p->data->zeros();
+
+						if(group->amsgrad) {
+							// Maintains max of all exp. moving avg. of sq. grad. values
+							state->max_exp_avg_sq->data = &p->data->zeros();
+						}
+					}
+
+					p->state->step += 1;
+					auto beta1 = group->betas[0];
+					auto beta2 = group->betas[1];
+
+					auto bias_correction1 = 1 - std::pow(beta1, p->state->step);
+					auto bias_correction2 = 1 - std::pow(beta2, p->state->step);
+
+					if(group->weight_decay != 0) {
+						p->grad = p->grad + group->weight_decay;
+					}
+
+					// Decay the first and second moment running average coefficient
+					p->state->exp_avg->data = &p->state->exp_avg->data(beta1).add_(grad, 1 - beta1);
+					p->state->exp_avg_sq->data = &mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+
+					Matrix denom;
+					if(group->amsgrad) {
+						// Maintains the maximum of all 2nd moment running avg. till now
+						// Matrix::max_out(p->state->max_exp_avg_sq, p->state->exp_avg_sq, p->state->max_exp_avg_sq);
+						// Use the max. for normalizing running avg. of gradient
+						denom = (p->state->max_exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
+					} else {
+						denom = (p->state->exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
+					}
+
+					auto step_size = group->lr / bias_correction1;
+					p->state->exp_avg->data = p->state->exp_avg->data + (denom->data * -step_size);
 				}
-
-				p->state->step += 1;
-				auto beta1 = group->betas[0];
-				auto beta2 = group->betas[1];
-
-				auto bias_correction1 = 1 - std::pow(beta1, p->state->step);
-				auto bias_correction2 = 1 - std::pow(beta2, p->state->step);
-
-				if(group->weight_decay != 0) {
-					p->grad = p->grad->add(p, group->weight_decay);
-				}
-
-				// Decay the first and second moment running average coefficient
-				p->state->exp_avg->data = &p->state->exp_avg->data(beta1).add_(grad, 1 - beta1);
-				p->state->exp_avg_sq->data = &mul_(beta2).addcmul_(grad, grad, 1 - beta2);
-
-				Matrix denom;
-				if(group->amsgrad) {
-					// Maintains the maximum of all 2nd moment running avg. till now
-					// Matrix::max_out(p->state->max_exp_avg_sq, p->state->exp_avg_sq, p->state->max_exp_avg_sq);
-					// Use the max. for normalizing running avg. of gradient
-					denom = (p->state->max_exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
-				} else {
-					denom = (p->state->exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
-				}
-
-				auto step_size = group->lr / bias_correction1;
-				p->state->exp_avg->data = p->state->exp_avg->data + (denom->data * -step_size);
 			}
 		}
-	}
 };

@@ -207,6 +207,13 @@ Matrix operator+(const Matrix& m1, const Matrix& m2) {
   });
 }
 
+Matrix operator+(const Matrix& m1, const double& m2) {
+  // Possibly could be faster using blas
+  return Matrix(m1.height, m1.width, [&](int i) {
+    return m1.values[i] + m2;
+  });
+}
+
 Matrix operator-(const Matrix& m1, const Matrix& m2) {
   assert(m1.height == m2.height);
   assert(m1.width == m2.width);
