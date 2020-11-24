@@ -93,6 +93,13 @@ public:
       return values[i];
     });
   }
+	
+	// This is the gradient when no activation function is used. 
+  Matrix zeros() {
+    return Matrix(height, width, [&]() {
+      return 0.;
+    });
+  }
 
   // This is the gradient when no activation function is used. 
   Matrix ones() {
