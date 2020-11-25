@@ -116,6 +116,46 @@ public:
     });
   }
 
+	Matrix& add_(const double& d) {
+		for (int i = 0; i < this->height * this->width; i++) {
+			this->values[i] += d;
+		}
+		return *this;
+	}
+
+	Matrix& add_(const Matrix& m1, const double& d) {
+		assert(this->height == m1.height);
+		assert(this->width == m1.width);
+		for (int i = 0; i < this->height * this->width; i++) {
+			this->values[i] += m1.values[i] + d;
+		}
+		return *this;
+	}
+
+	Matrix& mul_(const double& d) {
+		for (int i = 0; i < this->height * this->width; i++) {
+			this->values[i] *= d;
+		}
+		return *this;
+	}
+
+	/**
+	 * This may need to be put in layer.h
+	 */
+	Matrix& addcdiv_(const Matrix& m1, const Matrix& m2, const double& val) {
+		assert(this->height == m1.height);
+		assert(m1.height == m2.height);
+		assert(this->width == m1.width);
+		assert(m1.width == m2.width);
+		for (int i = 0; i < this->height * this->width; i++) {
+			if (m2.values[i] != 0)
+			{
+				this->values[i] += val * m1.values[i] / m2.values[i];
+			}
+		}
+		return *this;
+	}
+
   // Creates a bias matrix of all zeroes and runs matrix_multiply. 
   static Matrix matrix_multiply(Matrix &m1, bool m1_transpose, Matrix &m2, bool m2_transpose) {
     int out_height = m1_transpose ? m1.width : m1.height;

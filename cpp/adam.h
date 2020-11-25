@@ -38,6 +38,7 @@ private:
 		};
 		struct Adam_Group {
 			vector<Tensor*> params;
+			vector<Adam_Param_State> state_;
 			double lr = 1E-3L;
 			double betas[2] = {0.9L, 0.999L};
 			double eps = 1E-8L;
@@ -94,10 +95,10 @@ public:
 		/**
 		 * Take one Adam step
 		 */
-		void Adam::step()  {
+		void step()  {
 			for (auto& group : this->param_groups_) {
 				for (auto& p : group->params) {
-					if (p->grad != nullptr) {
+					if (p->grad == nullptr) {
 						continue;
 					}
 
@@ -124,23 +125,11 @@ public:
 					auto bias_correction1 = 1 - std::pow(beta1, p->state->step);
 					auto bias_correction2 = 1 - std::pow(beta2, p->state->step);
 
-					if(group->weight_decay != 0) {
-						p->grad = p->grad + group->weight_decay;
-					}
-
 					// Decay the first and second moment running average coefficient
-					p->state->exp_avg->data = &p->state->exp_avg->data(beta1).add_(grad, 1 - beta1);
-					p->state->exp_avg_sq->data = &mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+					exp_avg.mul_(beta1).add_(grad, 1 - beta1);
+					exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
 
-					Matrix denom;
-					if(group->amsgrad) {
-						// Maintains the maximum of all 2nd moment running avg. till now
-						// Matrix::max_out(p->state->max_exp_avg_sq, p->state->exp_avg_sq, p->state->max_exp_avg_sq);
-						// Use the max. for normalizing running avg. of gradient
-						denom = (p->state->max_exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
-					} else {
-						denom = (p->state->exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(group->eps);
-					}
+					Matrix denom = (exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(options.eps());
 
 					auto step_size = group->lr / bias_correction1;
 					p->state->exp_avg->data = p->state->exp_avg->data + (denom->data * -step_size);
