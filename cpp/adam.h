@@ -17,8 +17,8 @@ class Adam {
 private:
 		struct Adam_Param_State;
 		struct Tensor {
-			Matrix* data;
-			Tensor* grad;
+			Matrix& data;
+			Tensor& grad;
 			Adam_Param_State* state;
 			bool requires_grad = true;
 			bool is_leaf = true;
@@ -65,7 +65,7 @@ public:
 		}
 
 		// @param lr is the learning rate, default 0.001
-		Adam(Matrix* params, double lr = 1E-3L) {
+		Adam(Matrix& params, double lr = 1E-3L) {
 			Adam_Group* group = new Adam_Group();
 			group->lr = lr;
 
