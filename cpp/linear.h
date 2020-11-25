@@ -1,6 +1,5 @@
 #pragma once
 
-#include "cblas.h"
 #include "matrix.h"
 #include <iostream>
 #include <random>

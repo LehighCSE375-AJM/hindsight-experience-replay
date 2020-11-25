@@ -57,7 +57,7 @@ public:
     }
 
     void backprop(Matrix &actual, Matrix &predicted) {
-        Matrix loss_gradient = actual - predicted;
+        Matrix loss_gradient = predicted - actual;
         loss_gradient = q_out.compute_gradient(loss_gradient);
         loss_gradient = fc3.compute_gradient(loss_gradient);
         loss_gradient = fc2.compute_gradient(loss_gradient);

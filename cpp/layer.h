@@ -81,8 +81,8 @@ public:
         Matrix new_error_gradient = Matrix::matrix_multiply(lin->weights, true, preactivation_error_gradient, false);
 
         // This updates the model. Will have to be updated to use Adam optimizer. 
-        lin->weights = lin->weights + (weight_gradient * LEARNING_RATE);
-        lin->bias = lin->bias + (bias_gradient * LEARNING_RATE);
+        lin->weights = lin->weights - (weight_gradient * LEARNING_RATE);
+        lin->bias = lin->bias - (bias_gradient * LEARNING_RATE);
         return new_error_gradient;
     }
 };

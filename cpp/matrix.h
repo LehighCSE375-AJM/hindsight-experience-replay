@@ -4,6 +4,7 @@
 #include <functional>
 #include <cmath>
 #include <assert.h>
+#include "cblas.h"
 
 using namespace std;
 
@@ -94,7 +95,6 @@ public:
     });
   }
 	
-	// This is the gradient when no activation function is used. 
   Matrix zeros() {
     return Matrix(height, width, [&]() {
       return 0.;
@@ -148,8 +148,7 @@ public:
 		assert(this->width == m1.width);
 		assert(m1.width == m2.width);
 		for (int i = 0; i < this->height * this->width; i++) {
-			if (m2.values[i] != 0)
-			{
+			if (m2.values[i] != 0) {
 				this->values[i] += val * m1.values[i] / m2.values[i];
 			}
 		}
