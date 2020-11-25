@@ -1,6 +1,7 @@
 #include "matrix.h"
 #include <vector>
 #include <iterator>
+#import <cmath>
 
 
 /**
@@ -126,13 +127,14 @@ public:
 					auto bias_correction2 = 1 - std::pow(beta2, p->state->step);
 
 					// Decay the first and second moment running average coefficient
-					exp_avg.mul_(beta1).add_(grad, 1 - beta1);
-					exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+					p->state->exp_avg->data->mul_(beta1).add_(*(p->grad->data), 1 - beta1);
+					p->state->exp_avg_sq->data->mul_(beta2).addcmul_(*(p->grad->data), *(p->grad->data), 1 - beta2);
 
-					Matrix denom = (exp_avg_sq.sqrt() / sqrt(bias_correction2)).add_(options.eps());
+					Matrix denom = Matrix(exp_avg_sq->data);
+					denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(options->eps);
 
 					auto step_size = group->lr / bias_correction1;
-					p->state->exp_avg->data = p->state->exp_avg->data + (denom->data * -step_size);
+					p->data->addcdiv_(p->state->exp_avg, denom, -step);
 				}
 			}
 		}
