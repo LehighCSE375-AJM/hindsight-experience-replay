@@ -9,10 +9,10 @@
 
 class Actor {
 private:
-    layer fc1 = layer(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
-    layer fc2 = layer(NEURONS, NEURONS, RELU);
-    layer fc3 = layer(NEURONS, NEURONS, RELU);
-    layer action_out = layer(NEURONS, ACTION_DIM, TANH);
+    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
+    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
+    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
+    Layer action_out = Layer(NEURONS, ACTION_DIM, TANH);
 
     Matrix max_action;
 
@@ -35,10 +35,10 @@ public:
 
 class Critic {
 private:
-    layer fc1 = layer(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
-    layer fc2 = layer(NEURONS, NEURONS, RELU);
-    layer fc3 = layer(NEURONS, NEURONS, RELU);
-    layer q_out = layer(NEURONS, 1, NONE);
+    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
+    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
+    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
+    Layer q_out = Layer(NEURONS, 1, NONE);
     Matrix max_action;
 
 public:

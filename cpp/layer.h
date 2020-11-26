@@ -9,9 +9,9 @@ enum ActivationFunction {
 // If this is too high it'll give a bunch of nans. 
 const double LEARNING_RATE = 0.00001; // This should not be a constant (also it shouldn't be defined in this file)
 
-class layer {
+class Layer {
 private:
-    linear *lin;
+    Linear *lin;
 
     Matrix weight_gradient;
     Matrix bias_gradient;
@@ -27,12 +27,12 @@ private:
     ActivationFunction fun;
 public:
 
-    layer(int in_features, int out_features, ActivationFunction fun) {
-        this->lin = new linear(in_features, out_features);
+    Layer(int in_features, int out_features, ActivationFunction fun) {
+        this->lin = new Linear(in_features, out_features);
         this->fun = fun;
     }
 
-    ~layer() {
+    ~Layer() {
         delete this->lin;
     }
 

@@ -8,7 +8,7 @@
 using namespace std;
 
 // Based off of pytorch nn.Linear
-class linear {
+class Linear {
 private:
     int _in_features;
     int _out_features;
@@ -16,7 +16,7 @@ public:
     Matrix weights;
     Matrix bias;
 
-    linear(int in_features, int out_features) {
+    Linear(int in_features, int out_features) {
         random_device rd;
         mt19937 gen(rd());
 
