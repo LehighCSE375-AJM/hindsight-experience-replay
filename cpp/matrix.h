@@ -44,55 +44,67 @@ public:
   }
 
   Matrix& operator=(const Matrix &m) {
-    delete[] this->values;
+    if (this->height * this->width != m.height * m.width) {
+      if (this->values != NULL) {
+        delete[] this->values;
+      }
+      this->values = new double[m.height * m.width];
+    }
     // Theres a whole lot of copying values which seems slow. 
-    initialize(m.height, m.width, [&](int row, int column) {
-      int index = row * width + column;
-      return m.values[index];
-    });
+    this->height = m.height;
+    this->width = m.width;
+    cblas_dcopy(height * width, m.values, 1, values, 1);
     return (*this);
   }
 
   ~Matrix() {
-    delete[] values;
+    if (values != NULL) {
+      delete[] values;
+    }
   }
 
-  // Creates a new matrix (required for computing gradients for layer.h)
-  Matrix relu() {
-    return Matrix(height, width, [&](int i) {
-      return max(0., values[i]);
-    });
+  // Calculates the relu function and writies the output to the passed in matrix
+  // Means can reuse already alocated matricies. 
+  void relu(Matrix &m) {
+    assert(m.height == height);
+    assert(m.width == width);
+    for (int i = 0; i < height * width; ++i) {
+      m.values[i] = max(0., values[i]);
+    }
   }
 
-  // Creates a new matrix (possibly can do it in place, but need to write everything first)
-  // Computes the gradient of the relu function for each element. 
-  Matrix relu_gradient() {
-    return Matrix(height, width, [&](int i) {
-      // Maybe should be >= although I doubt it matters
-      return values[i] > 0 ? 1. : 0.;
-    });
+  // Computes the gradient of the relu function for each element in place
+  Matrix& relu_gradient() {
+    for (int i = 0; i < height * width; ++i) {
+      values[i] = values[i] > 0 ? 1. : 0.;
+    }
+    return *this;
   }
 
-  // Creates a new matrix (required for computing gradients for layer.h)
-  Matrix tanh() {
-    return Matrix(height, width, [&](int i) {
-      return std::tanh(values[i]);
-    });
+  // Calculates the tanh function and writies the output to the passed in matrix
+  // This has the advantage that we don't need to allocate a whole bunch of new space each time we run this function. 
+  void tanh(Matrix &m) {
+    assert(m.height == height);
+    assert(m.width == width);
+    for (int i = 0; i < height * width; ++i) {
+      m.values[i] = std::tanh(values[i]);
+    }
   }
 
-  // Creates a new matrix (possibly can do it in place, but need to write everything first)
-  // Computes the gradient of the relu function for each element. 
-  Matrix tanh_gradient() {
-    return Matrix(height, width, [&](int i) {
+  // Computes the gradient of the tanh function for each element in place. 
+  Matrix& tanh_gradient() {
+    for (int i = 0; i < height * width; ++i) {
       // This is another way to write sech^2. Not sure why cmath doesn't have a sech function. 
-      return 1 - pow(std::tanh(values[i]), 2);
-    });
+      values[i] = 1 - pow(std::tanh(values[i]), 2);
+    }
+    return *this;
   }
 
-  Matrix copy() {
-    return Matrix(height, width, [&](int i) {
-      return values[i];
-    });
+  // Copies the values from this matrix onto the passed in matrix. 
+  void copy(Matrix &m) {
+    assert(m.height == height);
+    assert(m.width == width);
+    cblas_dcopy(height * width, values, 1, m.values, 1);
   }
 	
   Matrix zeros() {
@@ -102,18 +114,22 @@ public:
   }
 
   // This is the gradient when no activation function is used. 
-  Matrix ones() {
-    return Matrix(height, width, [&]() {
-      return 1.;
-    });
+  Matrix& ones() {
+    for (int i = 0; i < height * width; ++i) {
+      values[i] = 1;
+    }
+    return *this;
   }
 
-  Matrix transpose() {
-    // The column, row args are backwards which makes the transpose work. 
-    return Matrix(width, height, [&](int column, int row) {
-      int index = row * width + column;
-      return values[index];
-    });
+  // Transposes this matrix onto the passed in matrix. 
+  void transpose(Matrix &m) {
+    for (int i = 0; i < height; ++i) {
+      for (int j = 0; j < width; ++j) {
+        int index1 = i * width + j;
+        int index2 = j * height + i;
+        m.values[index2] = values[index1];
+      }
+    }
   }
 
 	Matrix& add_(const double& d) {
@@ -133,8 +149,15 @@ public:
 	}
 
 	Matrix& mul_(const double& d) {
+    cblas_dscal(height * width, d, values, 1);
+    return *this;
+	}
+
+  Matrix& mul_(const Matrix& m) {
+    assert(this->height == m.height);
+		assert(this->width == m.width);
 		for (int i = 0; i < this->height * this->width; i++) {
-			this->values[i] *= d;
+			this->values[i] *= m.values[i];
 		}
 		return *this;
 	}
@@ -143,6 +166,13 @@ public:
     for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] = std::sqrt(this->values[i]);
 		}
+  }
+
+  // this = this - m * p
+  Matrix& submul_(const Matrix& m, const double& p) {
+    assert(this->height == m.height);
+		assert(this->width == m.width);
+    cblas_daxpby(height * width, -p, m.values, 1, 1, values, 1);
     return *this;
   }
 
@@ -177,6 +207,7 @@ public:
 	}
 
   // Creates a bias matrix of all zeroes and runs matrix_multiply. 
+  // This can be inefficient when the output matrix is large as it has to allocate a new array of that size. 
   static Matrix matrix_multiply(Matrix &m1, bool m1_transpose, Matrix &m2, bool m2_transpose) {
     int out_height = m1_transpose ? m1.width : m1.height;
     int out_width = m2_transpose ? m2.height : m2.width;
@@ -228,14 +259,12 @@ ostream& operator<<(ostream& os, const Matrix& m) {
   return os;
 }
 
-// TODO redo all the below operations using blas (assuming blas supports them)
+// The below operators should be used sparingly as they are not done in place which means a new (possibly large) double array has to be allocated. 
 // Calculates the product of each individual element (does NOT multiply the matrix in typical matrix multiplication fashion.)
 // Resembles torch tensor * operator. 
 Matrix operator*(const Matrix& m1, const Matrix& m2) {
   assert(m1.height == m2.height);
   assert(m1.width == m2.width);
-  // Possibly could be faster using blas, however the matricies that use
-  // this operator are so small anyways its probably not worth it. 
   return Matrix(m1.height, m1.width, [&](int i) {
     return m1.values[i] * m2.values[i];
   });
@@ -243,7 +272,6 @@ Matrix operator*(const Matrix& m1, const Matrix& m2) {
 
 // Multiplies each element by a constant. 
 Matrix operator*(const Matrix& m1, const double& m2) {
-  // Possibly could be faster using blas
   return Matrix(m1.height, m1.width, [&](int i) {
     return m1.values[i] * m2;
   });
@@ -268,7 +296,6 @@ Matrix operator+(const Matrix& m1, const Matrix& m2) {
 }
 
 Matrix operator+(const Matrix& m1, const double& m2) {
-  // Possibly could be faster using blas
   return Matrix(m1.height, m1.width, [&](int i) {
     return m1.values[i] + m2;
   });
