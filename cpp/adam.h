@@ -22,7 +22,7 @@ private:
 		Matrix& exp_avg_sq;
 	};
 	
-	vector<Matrix&> params;
+	vector<Layer&> params;
 	vector<Adam_Param_State&> state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
@@ -30,14 +30,14 @@ private:
 public:
 
 	// @param lr is the learning rate, default 0.001
-	Adam(vector<Matrix&> params, double lr = 1E-3L) {
+	Adam(vector<Layer&> params, double lr = 1E-3L) {
 		this->params = params;
 		this->lr = lr;
 	}
 
 	// @param lr is the learning rate, default 0.001
-	Adam(Matrix& params, double lr = 1E-3L) {
-		this->params.push_back[params];
+	Adam(Layer& params, double lr = 1E-3L) {
+		this->params.push_back(params);
 		this->lr = lr;
 	}
 
@@ -50,30 +50,31 @@ public:
 			// State initialization
 			if(index >= this->state_->size()) {
 				Adam_Param_State state;
-				state->exp_avg = p->zeros();
-				state->exp_avg_sq = p->zeros();
+				state->exp_avg = p->lin->weights->zeros();
+				state->exp_avg_sq = p->lin->weights->zeros();
 				this->state_.push_back(state);
 			}
 
 			Adam_Param_State &state = this->state_.at(index);
-			Matrix &grad = ????;
+			Matrix &grad = p->grad();
 
 			state.step += 1;
-			auto beta1 = this->betas[0];
-			auto beta2 = this->betas[1];
+			double beta1 = this->betas[0];
+			double beta2 = this->betas[1];
 
-			auto bias_correction1 = 1 - std::pow(beta1, state.step);
-			auto bias_correction2 = 1 - std::pow(beta2, state.step);
+			double bias_correction1 = 1 - std::pow(beta1, state.step);
+			double bias_correction2 = 1 - std::pow(beta2, state.step);
 
 			// Decay the first and second moment running average coefficient
 			state.exp_avg.mul_(beta1).add_(grad, 1 - beta1);
 			state.exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
 
-			Matrix denom = Matrix(state.exp_avg_sq);
+			// Copy Matrix using a cute operator override
+			Matrix denom = state.exp_avg_sq;
 			denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(this->eps);
 
-			auto step_size = this->lr / bias_correction1;
-			p->addcdiv_(state.exp_avg, denom, -step);
+			double step_size = this->lr / bias_correction1;
+			p->lin.weights->addcdiv_(state.exp_avg, denom, -step_size);
 		}
 	}
 };

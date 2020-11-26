@@ -36,6 +36,10 @@ public:
         delete this->lin;
     }
 
+    Matrix& grad() {
+        return &this->out_error_gradient;
+    }
+
     Matrix& forward(Matrix &x) {
         this->in = x;
         if (out.height != x.height || out.width != lin->bias.width) {
