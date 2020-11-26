@@ -11,7 +11,6 @@ const double LEARNING_RATE = 0.00001; // This should not be a constant (also it 
 
 class Layer {
 private:
-    Linear *lin;
 
     Matrix weight_gradient;
     Matrix bias_gradient;
@@ -26,6 +25,7 @@ private:
     // I enjoy calling variables fun (you could says I find it fun)
     ActivationFunction fun;
 public:
+    Linear *lin;
 
     Layer(int in_features, int out_features, ActivationFunction fun) {
         this->lin = new Linear(in_features, out_features);

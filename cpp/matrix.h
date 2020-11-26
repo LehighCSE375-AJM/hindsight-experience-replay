@@ -162,6 +162,12 @@ public:
 		return *this;
 	}
 
+	Matrix& div_(const double& d) {
+		assert(d != 0.);
+    cblas_dscal(height * width, 1/d, values, 1);
+    return *this;
+	}
+
   Matrix& sqrt_() {
     for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] = std::sqrt(this->values[i]);

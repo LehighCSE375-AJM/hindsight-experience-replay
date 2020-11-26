@@ -48,15 +48,13 @@ public:
 		int index = 0;
 		for (auto it = this->layers_.begin(); it != this->layers_.end(); ++it, ++index) {
 			// State initialization
-			if(index >= this->state_->size()) {
-				Adam_Param_State state;
-				state->exp_avg = p->lin->weights->zeros();
-				state->exp_avg_sq = p->lin->weights->zeros();
+			if(index >= this->state_.size()) {
+				Adam_Param_State state = {0, it->lin->weights->zeros(), p->lin->weights->zeros()};
 				this->state_.push_back(state);
 			}
 
 			Adam_Param_State &state = this->state_.at(index);
-			Matrix &grad = p->grad();
+			Matrix &grad = it->grad();
 
 			state.step += 1;
 			double beta1 = this->betas[0];
@@ -74,7 +72,7 @@ public:
 			denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(this->eps);
 
 			double step_size = this->lr / bias_correction1;
-			p->lin->weights->addcdiv_(state.exp_avg, denom, -step_size);
+			it->lin->weights->addcdiv_(state.exp_avg, denom, -step_size);
 		}
 	}
 };
