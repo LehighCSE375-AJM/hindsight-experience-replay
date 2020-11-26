@@ -26,8 +26,8 @@ public:
         Matrix m1 = fc1.forward(x);
         Matrix m2 = fc2.forward(m1);
         Matrix m3 = fc3.forward(m2);
-        Matrix m4 = action_out.forward(m3);
-        Matrix out = max_action * m4;
+        Matrix out = action_out.forward(m3);
+        out.mul_(max_action);
         return out;
     }
 };
@@ -42,18 +42,19 @@ private:
     Matrix max_action;
 
 public:
+
     Critic(Matrix &max_action) {
         this->max_action = max_action;
     };
 
-    Matrix forward(Matrix &x, Matrix &actions) {
+    Matrix& forward(Matrix &x, Matrix &actions) {
         Matrix adjusted_actions = actions / max_action;
         Matrix in = Matrix::vector_concat(x, adjusted_actions);
-        Matrix m1 = fc1.forward(in);
-        Matrix m2 = fc2.forward(m1);
-        Matrix m3 = fc3.forward(m2);
-        Matrix m4 = q_out.forward(m3);
-        return m4;
+        Matrix &out = fc1.forward(in);
+        out = fc2.forward(out);
+        out = fc3.forward(out);
+        out = q_out.forward(out);
+        return out;
     }
 
     void backprop(Matrix &actual, Matrix &predicted) {

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include "linear.h"
 #include "matrix.h"
 #include "models.h"
@@ -17,6 +18,8 @@ int main() {
     Matrix out;
     Matrix expected;
 
+    auto start = chrono::high_resolution_clock::now();
+
     // Learns to add three numbers and multiply the result by two. pretty neat.
     for (int i = 1; i < 10000; ++i) {
         int val1 = rand() % 50;
@@ -31,4 +34,10 @@ int main() {
         }
         a.backprop(expected, out);
     }
+
+    auto end = chrono::high_resolution_clock::now();
+    // 3.56722e+07 with no optimizations!
+    // 7.80901e+06 with optimizations made. 
+    chrono::duration<float, micro> duration = end - start;
+    cout << "Duration: " << duration.count() << endl;
 }
