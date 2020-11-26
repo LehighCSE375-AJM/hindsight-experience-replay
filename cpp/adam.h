@@ -22,7 +22,7 @@ private:
 		Matrix& exp_avg_sq;
 	};
 	
-	vector<Layer&> params;
+	vector<Layer&> layers_;
 	vector<Adam_Param_State&> state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
@@ -31,13 +31,13 @@ public:
 
 	// @param lr is the learning rate, default 0.001
 	Adam(vector<Layer&> params, double lr = 1E-3L) {
-		this->params = params;
+		this->layers_ = params;
 		this->lr = lr;
 	}
 
 	// @param lr is the learning rate, default 0.001
 	Adam(Layer& params, double lr = 1E-3L) {
-		this->params.push_back(params);
+		this->layers_.push_back(params);
 		this->lr = lr;
 	}
 
@@ -46,7 +46,7 @@ public:
 	 */
 	void step()  {
 		int index = 0;
-		for (auto it = this->params.begin(); it != container.end(); ++it, ++index) {
+		for (auto it = this->layers_.begin(); it != this->layers_.end(); ++it, ++index) {
 			// State initialization
 			if(index >= this->state_->size()) {
 				Adam_Param_State state;

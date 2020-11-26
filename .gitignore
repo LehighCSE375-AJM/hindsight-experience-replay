@@ -116,3 +116,4 @@ venv.bak/
 # ide directories
 .idea/
 .vscode/
+.vs/

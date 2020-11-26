@@ -1,6 +1,6 @@
 program_NAME := a.out
 
-SRCS = learn.cc
+SRCS = learn.cpp
 HDRS = linear.h models.h matrix.h layer.h adam.h
 OBJS := ${SRCS:.c=.o}
 
