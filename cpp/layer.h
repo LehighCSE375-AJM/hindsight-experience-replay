@@ -37,7 +37,7 @@ public:
     }
 
     Matrix& grad() {
-        return &this->out_error_gradient;
+        return this->out_error_gradient;
     }
 
     Matrix& forward(Matrix &x) {
