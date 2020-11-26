@@ -139,6 +139,13 @@ public:
 		return *this;
 	}
 
+  Matrix& sqrt_() {
+    for (int i = 0; i < this->height * this->width; i++) {
+			this->values[i] = std::sqrt(this->values[i]);
+		}
+    return *this;
+  }
+
 	/**
 	 * This may need to be put in layer.h
 	 */
