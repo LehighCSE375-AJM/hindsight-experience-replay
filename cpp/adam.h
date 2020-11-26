@@ -74,7 +74,7 @@ public:
 			denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(this->eps);
 
 			double step_size = this->lr / bias_correction1;
-			p->lin.weights->addcdiv_(state.exp_avg, denom, -step_size);
+			p->lin->weights->addcdiv_(state.exp_avg, denom, -step_size);
 		}
 	}
 };
