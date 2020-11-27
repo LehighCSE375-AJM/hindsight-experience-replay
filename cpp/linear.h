@@ -29,21 +29,14 @@ public:
         bias = Matrix(1, out_features, [&](){return dis(gen);});
     }
 
-    void multiply(Matrix &x, Matrix &out) {
-        // I'm not really sure that passing the out matrix speeds up anything. (and it does make the code less neat)
-        // In theory it should since we don't need to allocate a new double array, but I'm not sure its worth it. 
+    void multiply(const Matrix &x, Matrix &out) const {
         assert(x.width == _in_features);
-        assert(x.height = out.height);
-        assert(_out_features == out.width);
+        Matrix::setup_output_matrix(x.height, _out_features, out);
         for (int r = 0; r < out.height; ++r) {
             for (int c = 0; c < out.width; ++c) {
                 out.values[r * out.width + c] = bias.values[c];
             }
         }
-        // Matrix out = Matrix(x.height, _out_features, [&](int row, int column) {
-        //     return bias.values[column];
-        // });
         Matrix::matrix_multiply(x, false, weights, true, out);
-        // return out;
     }
 };

@@ -16,17 +16,18 @@ private:
 
     Matrix max_action;
 
+    Matrix out;
+
 public:
-    Actor(Matrix &max_action) {
+    explicit Actor(Matrix &max_action) {
         this->max_action = max_action;
     };
 
-    Matrix forward(Matrix &x) {
-
-        Matrix m1 = fc1.forward(x);
-        Matrix m2 = fc2.forward(m1);
-        Matrix m3 = fc3.forward(m2);
-        Matrix out = action_out.forward(m3);
+    Matrix& forward(Matrix &x) {
+        out = fc1.forward(x);
+        out = fc2.forward(out);
+        out = fc3.forward(out);
+        out = action_out.forward(out);
         out.mul_(max_action);
         return out;
     }
@@ -41,27 +42,34 @@ private:
     Layer q_out = Layer(NEURONS, 1, NONE);
     Matrix max_action;
 
+    // Miscelanious intermediate matricies. 
+    Matrix _adjusted_actions;
+    Matrix _loss_gradient;
+    Matrix _adjusted_in;
+
 public:
 
-    Critic(Matrix &max_action) {
+    explicit Critic(Matrix &max_action) {
         this->max_action = max_action;
     };
 
-    Matrix& forward(Matrix &x, Matrix &actions) {
-        Matrix adjusted_actions = actions / max_action;
-        Matrix in = Matrix::vector_concat(x, adjusted_actions);
-        Matrix &out = fc1.forward(in);
-        out = fc2.forward(out);
-        out = fc3.forward(out);
-        out = q_out.forward(out);
-        return out;
+    Matrix& forward(const Matrix &x, const Matrix &actions) {
+        actions.copy(_adjusted_actions);
+        _adjusted_actions.div_(max_action);
+        Matrix::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
+        fc1.forward(_adjusted_in);
+        fc2.forward(fc1.out());
+        fc3.forward(fc2.out());
+        q_out.forward(fc3.out());
+        return q_out.out();
     }
 
-    void backprop(Matrix &actual, Matrix &predicted) {
-        Matrix loss_gradient = predicted - actual;
-        loss_gradient = q_out.compute_gradient(loss_gradient);
-        loss_gradient = fc3.compute_gradient(loss_gradient);
-        loss_gradient = fc2.compute_gradient(loss_gradient);
-        fc1.compute_gradient(loss_gradient);
+    void backprop(const Matrix &actual, const Matrix &predicted) {
+        predicted.copy(_loss_gradient);
+        _loss_gradient.sub_(actual);
+        q_out.compute_gradient(_loss_gradient);
+        fc3.compute_gradient(q_out.grad());
+        fc2.compute_gradient(fc3.grad());
+        fc1.compute_gradient(fc2.grad());
     }
 };

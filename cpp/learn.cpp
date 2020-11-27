@@ -9,7 +9,7 @@ using namespace std;
 int main() {
 
     // So that it doesn't affect the input of the matrix
-    Matrix max_actions = Matrix(1, 1, [](int row, int column){return 1;});
+    Matrix max_actions(1, 1, [](){ return 1;});
 
     Critic a = Critic(max_actions);
 
@@ -28,7 +28,7 @@ int main() {
         x = Matrix(1, 2, [&](int i) { return i == 0 ? val1 : val2; });
         actions = Matrix(1, 1, [&]() { return val3; });
         out = a.forward(x, actions);
-        Matrix expected = Matrix(1, 1, [&](){ return (val1 + val2 + val3) * 2; });
+        expected = Matrix(1, 1, [&](){ return (val1 + val2 + val3) * 2; });
         if (i % 100 == 0) {
             cout << "2 * (" << val1 << " + " << val2 << " + " << val3 << ") = " << (val1 + val2 + val3) * 2 << " =? " << out;
         }
@@ -37,7 +37,7 @@ int main() {
 
     auto end = chrono::high_resolution_clock::now();
     // 3.56722e+07 with no optimizations!
-    // 7.80901e+06 with optimizations made. 
+    // 7.40075e+06 with optimizations made. 
     chrono::duration<float, micro> duration = end - start;
     cout << "Duration: " << duration.count() << endl;
 }

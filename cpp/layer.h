@@ -11,16 +11,35 @@ const double LEARNING_RATE = 0.00001; // This should not be a constant (also it 
 
 class Layer {
 private:
+    // This is generally the math I followed (there are more specifics later about how this works with matricies):
+    // y = xW^T + b (x equals the z values of previous layers)
+    // z = f(y) where f(y) is the activation function. 
+    // E = (a - z)^2 for the last layer where a is the correct value
+    // dE/dz = -2(a - z) for the last layer
+    // dz/dy = f'(y) (the gradient of the activation function depends on the activation function)
+    // dy/dw = x (just take the derivative of y = xW^T + b for these three gradients)
+    // dy/db = 1
+    // dy/dx = W
+    // 
+    // dE/dx = dE/dz * dz/dy * dy/dx (since x equals the z value of previous layers this equals dE/dz for previous layers)
+    // dE/dw = dE/dz * dz/dy * dy/dw
+    // dE/db = dE/dz * dz/dy * dy/db = dE/dz * dz/dy (since dy/db = 1)
 
+    // Error gradient w.r.t. the weights
     Matrix weight_gradient;
+    // Error gradient w.r.t. the bias
     Matrix bias_gradient;
+    // Error gradient w.r.t. the input of the next layer (whats passed into the following compute_gradient function)
     Matrix out_error_gradient;
-    Matrix activation_gradient_transpose;
+    // An intermediate matrix for computing the gradient (represents the gradient of the error w.r.t. the output of linear layer)
+    Matrix _activation_gradient_transpose;
 
-    // The input and output matrixes from the last forward call
+    // The previous input value for the last forward call (x in y = xW^T + b)
     Matrix in;
+    // The output from before the activation function of the last forward call (y in y = xW^T + b)
     Matrix preactiv_out;
-    Matrix out;
+    // A matrix which represents the output of last forward call
+    Matrix _out;
 
     // I enjoy calling variables fun (you could says I find it fun)
     ActivationFunction fun;
@@ -40,35 +59,33 @@ public:
         return this->out_error_gradient;
     }
 
-    Matrix& forward(Matrix &x) {
+    Matrix& out() {
+        return this->_out;
+    }
+
+    Matrix& forward(const Matrix &x) {
         this->in = x;
-        if (out.height != x.height || out.width != lin->bias.width) {
-            preactiv_out = Matrix(x.height, lin->bias.width, [](){ return 0; });
-        }
 
         lin->multiply(x, this->preactiv_out);
-        if (out.height != preactiv_out.height || out.width != preactiv_out.width) {
-            out = Matrix(preactiv_out.height, preactiv_out.width, [](){return 0.;});
-        }
         switch (this->fun) {
             case RELU:
-                preactiv_out.relu(out);
+                preactiv_out.relu(_out);
                 break;
             case TANH:
-                preactiv_out.tanh(out);
+                preactiv_out.tanh(_out);
                 break;
             case NONE:
                 // What a boring activation function
-                preactiv_out.copy(out);
+                preactiv_out.copy(_out);
                 break;
             default:
                 throw runtime_error("Unrecognized activation function");
         }
-        return out;
+        return _out;
     }
 
     // error_gradient is gradient of error with respect to the output of this function. (This function returns the previous layer's error gradient)
-    Matrix& compute_gradient(Matrix &error_gradient) {
+    Matrix& compute_gradient(const Matrix &error_gradient) {
         // This is one way to calculate the gradients. I don't use it since I'm pretty sure its wrong (doesn't do the backpropagation with respect to the weight matrix neurons properly)
         // preactivation_error_gradient = error_gradient x activation_gradient (x indicates element wise multiplication)
         // preactivation_error_gradient^T * input = weight gradient (* means actual matrix multiplication)
@@ -90,35 +107,15 @@ public:
             case NONE:
                 preactiv_out.ones();
         }
-        if (activation_gradient_transpose.width != preactiv_out.height || activation_gradient_transpose.height != preactiv_out.width) {
-            activation_gradient_transpose = Matrix(preactiv_out.width, preactiv_out.height, [](){ return 0; });
-        }
-        preactiv_out.transpose(activation_gradient_transpose);
-        error_gradient.mul_(activation_gradient_transpose);
+        preactiv_out.transpose(_activation_gradient_transpose);
+        _activation_gradient_transpose.mul_(error_gradient);
         
-        // Also there's a chance this doesn't even do anything. (it should in theory help because there will be less mallocing, but running the code shows mixed results)
-        // I think it might be small enough where it doesn't make a difference. 
-        // I have a rather strong distaste for all these if statements. There definitely needs to be a better way to do this. 
-        // Could do it within these different function calls, but I would suspect that would hide errors which would be bad. 
-        // The constructor could also work, but then we'd need to pass in some information about the dimensions of the incoming error gradient. 
-        if (bias_gradient.width != error_gradient.height || bias_gradient.height != error_gradient.width) {
-            bias_gradient = Matrix(error_gradient.width, error_gradient.height, [](){ return 0; });
-        }
-        error_gradient.transpose(bias_gradient);
-        // In theory this if statement and the one below only occur the first time this is run, so this could be written more efficiently.
-        if (weight_gradient.width != lin->weights.width || weight_gradient.height != lin->weights.height) {
-            weight_gradient = Matrix(lin->weights.height, lin->weights.width, [](){ return 0; });
-        } else {
-            weight_gradient.mul_(0);            
-        }
-        Matrix::matrix_multiply(error_gradient, false, in, false, weight_gradient);
+        _activation_gradient_transpose.transpose(bias_gradient);
+        weight_gradient.mul_(0);
+        Matrix::matrix_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
 
-        if (out_error_gradient.width != error_gradient.width || out_error_gradient.height != lin->weights.width) {
-            out_error_gradient = Matrix(lin->weights.width, error_gradient.width, [](){ return 0; });
-        } else {
-            out_error_gradient.mul_(0);
-        }
-        Matrix::matrix_multiply(lin->weights, true, error_gradient, false, out_error_gradient);
+        out_error_gradient.mul_(0);
+        Matrix::matrix_multiply(lin->weights, true, _activation_gradient_transpose, false, out_error_gradient);
         // This updates the model. Will have to be updated to use Adam optimizer.
         lin->weights.submul_(weight_gradient, LEARNING_RATE); 
         lin->bias.submul_(bias_gradient, LEARNING_RATE); 
