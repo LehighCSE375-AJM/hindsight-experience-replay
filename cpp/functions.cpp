@@ -1,4 +1,4 @@
-// g++ -shared -Wl,-soname,code -o libc.so -fPIC functions.cpp
+// g++ -shared -Wl,-soname,wrapper-o wrapper.so -fPIC functions.cpp
 
 #include <iostream>
 
