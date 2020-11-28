@@ -119,3 +119,4 @@ venv.bak/
 .vs/
 
 .bash_history
+.ssh
