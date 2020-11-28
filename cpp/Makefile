@@ -6,7 +6,7 @@ OBJS := ${SRCS:.c=.o}
 
 CFLAGS += -m64 -O3 -g
 
-program_INCLUDE_DIRS := /opt/openblas/include /opt/openblas/lib/libopenblas.dylib
+program_INCLUDE_DIRS := ${OPENBLAS_DIR}
 #program_LIBRARY_DIRS :=
 #program_LIBRARIES :=
 
