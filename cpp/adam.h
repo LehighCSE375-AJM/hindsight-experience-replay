@@ -13,6 +13,9 @@
  * cpp implementation here
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/include/torch/optim/adam.h
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/src/optim/adam.cpp
+ * 
+ * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/include/torch/optim/optimizer.h
+ * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/src/optim/optimizer.cpp
  */
 class Adam {
 private:
@@ -22,22 +25,22 @@ private:
 		Tensor exp_avg_sq;
 	};
 	
-	vector<Layer> layers_;
+	vector<Tensor*> params_;
 	vector<Adam_Param_State> state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
 	double eps = 1E-8L;
 public:
 
-	// @param lr is the learning rate, default 0.001
-	Adam(vector<Layer> params, double lr = 1E-3L) {
-		this->layers_ = params;
-		this->lr = lr;
-	}
-
-	// @param lr is the learning rate, default 0.001
-	Adam(Layer& params, double lr = 1E-3L) {
-		this->layers_.push_back(params);
+	/**
+	 * Constructor for the Adam optimizer
+	 * 
+	 * NOTE: We call the parameter learning rate but the Adam paper calls it step size
+	 * @param params is an iterator of tensors in the order [weight, bias, weight ... ]
+	 * @param lr is the learning rate, default 0.001
+	 */
+	Adam(vector<Tensor*> params, double lr = 1E-3L) {
+		this->params_ = params;
 		this->lr = lr;
 	}
 
@@ -46,15 +49,18 @@ public:
 	 */
 	void step()  {
 		int index = 0;
-		for (auto it = this->layers_.begin(); it != this->layers_.end(); ++it, ++index) {
+		for (auto it = this->params_.begin(); it != this->params_.end(); ++it, ++index) {
+			Tensor *param = *it;
+			if (param->grad == nullptr) {
+				continue;
+			}
+			Tensor *grad = param->grad;
+
 			// State initialization
 			if(index >= this->state_.size()) {
-				Adam_Param_State state = {0, it->lin->weights.zeros(), it->lin->weights.zeros()};
-				this->state_.push_back(state);
+				this->state_.push_back({0, param->zeros(), param->zeros()});
 			}
-
 			Adam_Param_State &state = this->state_.at(index);
-			Tensor &grad = it->grad();
 
 			state.step += 1;
 			double beta1 = this->betas[0];
@@ -65,11 +71,11 @@ public:
 
 			// Update biased first moment estimate 
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t 
-			state.exp_avg.mul_(beta1).add_(grad, 1 - beta1);
+			state.exp_avg.mul_(beta1).add_(*grad, 1 - beta1);
 
 			// Update biased second raw moment estimate
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
-			state.exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+			state.exp_avg_sq.mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
 
 			// Copy Tensor using cute in place operations
 			Tensor denom = state.exp_avg_sq;
@@ -82,7 +88,7 @@ public:
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
 			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
-			it->lin->weights.addcdiv_(state.exp_avg, denom, -this->lr / bias_correction1);
+			param->addcdiv_(state.exp_avg, denom, -this->lr / bias_correction1);
 		}
 	}
 };

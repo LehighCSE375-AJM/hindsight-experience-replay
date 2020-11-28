@@ -45,7 +45,7 @@ private:
     ActivationFunction fun;
 public:
     Linear *lin;
-
+    
     Layer(int in_features, int out_features, ActivationFunction fun) {
         this->lin = new Linear(in_features, out_features);
         this->fun = fun;

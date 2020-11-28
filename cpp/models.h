@@ -31,6 +31,23 @@ public:
         out.mul_(max_action);
         return out;
     }
+
+    vector<Tensor*> parameters() {
+        vector<Tensor*> result;
+        result.push_back(&fc1.lin->weights);
+        result.push_back(&fc1.lin->bias);
+        
+        result.push_back(&fc2.lin->weights);
+        result.push_back(&fc2.lin->bias);
+        
+        result.push_back(&fc3.lin->weights);
+        result.push_back(&fc3.lin->bias);
+        
+        result.push_back(&action_out.lin->weights);
+        result.push_back(&action_out.lin->bias);
+
+        return result;
+    }
 };
 
 
@@ -71,5 +88,22 @@ public:
         fc3.compute_gradient(q_out.grad());
         fc2.compute_gradient(fc3.grad());
         fc1.compute_gradient(fc2.grad());
+    }
+
+    vector<Tensor*> parameters() {
+        vector<Tensor*> result;
+        result.push_back(&fc1.lin->weights);
+        result.push_back(&fc1.lin->bias);
+        
+        result.push_back(&fc2.lin->weights);
+        result.push_back(&fc2.lin->bias);
+        
+        result.push_back(&fc3.lin->weights);
+        result.push_back(&fc3.lin->bias);
+        
+        result.push_back(&q_out.lin->weights);
+        result.push_back(&q_out.lin->bias);
+
+        return result;
     }
 };
