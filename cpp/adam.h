@@ -18,19 +18,19 @@ class Adam {
 private:
 	struct Adam_Param_State {
 		int64_t step = 0;
-		Matrix& exp_avg;
-		Matrix& exp_avg_sq;
+		Matrix exp_avg;
+		Matrix exp_avg_sq;
 	};
 	
-	vector<Layer&> layers_;
-	vector<Adam_Param_State&> state_;
+	vector<Layer> layers_;
+	vector<Adam_Param_State> state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
 	double eps = 1E-8L;
 public:
 
 	// @param lr is the learning rate, default 0.001
-	Adam(vector<Layer&> params, double lr = 1E-3L) {
+	Adam(vector<Layer> params, double lr = 1E-3L) {
 		this->layers_ = params;
 		this->lr = lr;
 	}
@@ -49,7 +49,7 @@ public:
 		for (auto it = this->layers_.begin(); it != this->layers_.end(); ++it, ++index) {
 			// State initialization
 			if(index >= this->state_.size()) {
-				Adam_Param_State state = {0, it->lin->weights->zeros(), p->lin->weights->zeros()};
+				Adam_Param_State state = {0, it->lin->weights.zeros(), it->lin->weights.zeros()};
 				this->state_.push_back(state);
 			}
 
@@ -72,7 +72,7 @@ public:
 			denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(this->eps);
 
 			double step_size = this->lr / bias_correction1;
-			it->lin->weights->addcdiv_(state.exp_avg, denom, -step_size);
+			it->lin->weights.addcdiv_(state.exp_avg, denom, -step_size);
 		}
 	}
 };
