@@ -88,7 +88,7 @@ public:
     Tensor& compute_gradient(const Tensor &error_gradient) {
         // This is one way to calculate the gradients. I don't use it since I'm pretty sure its wrong (doesn't do the backpropagation with respect to the weight tensor neurons properly)
         // preactivation_error_gradient = error_gradient x activation_gradient (x indicates element wise multiplication)
-        // preactivation_error_gradient^T * input = weight gradient (* means actual tensor multiplication)
+        // preactivation_error_gradient^T * input = weight gradient (* means actual matrix multiplication)
         // preactivation_error_gradient * weight = new error gradient
         // preactivation_error_gradient = bias gradient (nice and simple!)
 

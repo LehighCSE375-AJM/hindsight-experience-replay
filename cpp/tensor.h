@@ -282,7 +282,7 @@ ostream& operator<<(ostream& os, const Tensor& m) {
 }
 
 // The below operators should be used sparingly as they are not done i place which means a new (possibly large) double array has to be allocated. 
-// Calculates the product of each individual element (does NOT multiply the tensor in typical tensor multiplication fashion.)
+// Calculates the product of each individual element (does NOT multiply the tensor in typical matrix multiplication fashion.)
 // Resembles torch tensor * operator. 
 Tensor operator*(const Tensor& m1, const Tensor& m2) {
   assert(m1.height == m2.height);
