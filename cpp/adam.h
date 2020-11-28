@@ -63,16 +63,26 @@ public:
 			double bias_correction1 = 1 - std::pow(beta1, state.step);
 			double bias_correction2 = 1 - std::pow(beta2, state.step);
 
-			// Decay the first and second moment running average coefficient
+			// Update biased first moment estimate 
+			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t 
 			state.exp_avg.mul_(beta1).add_(grad, 1 - beta1);
+
+			// Update biased second raw moment estimate
+			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
 			state.exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
 
-			// Copy Matrix using a cute operator override
+			// Copy Matrix using cute in place operations
 			Matrix denom = state.exp_avg_sq;
-			denom.sqrt_().div_(std::sqrt(bias_correction2)).add_(this->eps);
 
-			double step_size = this->lr / bias_correction1;
-			it->lin->weights.addcdiv_(state.exp_avg, denom, -step_size);
+			// Compute v-hat
+			denom.div_(bias_correction1).sqrt_().add_(this->eps);
+
+			
+			// Update parameters
+			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
+			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
+			// Intead of allocating and calculating m-hat like they do in the pseudocode
+			it->lin->weights.addcdiv_(state.exp_avg, denom, -this->lr / bias_correction1);
 		}
 	}
 };

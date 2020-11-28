@@ -2,6 +2,8 @@
 # docker build -t her .
 # Run container with (replacing /path/to/hindsight/repo):
 # docker run --privileged --rm -v /path/to/hindsight/repo:/root --runtime nvidia --network host --name herdev -it her
+# It's easier if you put "export HER_PATH=/path/to/hindsight/repo:/root" in your ~/.bash_profile and run
+# docker run --privileged --rm -v $HER_PATH:/root --runtime nvidia --network host --name herdev -it her
 
 # This preinstalls pytorch, python, pip3. 
 FROM nvcr.io/nvidia/l4t-pytorch:r32.4.4-pth1.6-py3

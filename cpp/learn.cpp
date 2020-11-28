@@ -3,6 +3,8 @@
 #include "linear.h"
 #include "matrix.h"
 #include "models.h"
+#include "adam.h"
+
 
 using namespace std;
 
