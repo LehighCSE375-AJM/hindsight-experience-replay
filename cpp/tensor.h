@@ -242,7 +242,7 @@ public:
 
   // Computes m1*m2 + bias (m1 and m2 are transposed if their respective transpose bools are true)
   // Bias is overwritten with the result (just how blas works)
-  static void tensor_multiply(const Tensor &m1, bool m1_transpose, const Tensor &m2, bool m2_transpose, Tensor &bias) {
+  static void matrix_multiply(const Tensor &m1, bool m1_transpose, const Tensor &m2, bool m2_transpose, Tensor &bias) {
     int m = m1_transpose ? m1.width : m1.height;
     int m1_k = m1_transpose ? m1.height : m1.width;
     int m2_k = m2_transpose ? m2.width : m2.height;

@@ -112,10 +112,10 @@ public:
         
         _activation_gradient_transpose.transpose(bias_gradient);
         weight_gradient.mul_(0);
-        Tensor::tensor_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
+        Tensor::matrix_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
 
         out_error_gradient.mul_(0);
-        Tensor::tensor_multiply(lin->weights, true, _activation_gradient_transpose, false, out_error_gradient);
+        Tensor::matrix_multiply(lin->weights, true, _activation_gradient_transpose, false, out_error_gradient);
         // This updates the model. Will have to be updated to use Adam optimizer.
         lin->weights.submul_(weight_gradient, LEARNING_RATE); 
         lin->bias.submul_(bias_gradient, LEARNING_RATE); 

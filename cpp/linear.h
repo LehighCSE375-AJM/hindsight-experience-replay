@@ -37,6 +37,6 @@ public:
                 out.values[r * out.width + c] = bias.values[c];
             }
         }
-        Tensor::tensor_multiply(x, false, weights, true, out);
+        Tensor::matrix_multiply(x, false, weights, true, out);
     }
 };
