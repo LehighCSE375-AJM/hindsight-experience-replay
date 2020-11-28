@@ -14,16 +14,16 @@ private:
     Layer fc3 = Layer(NEURONS, NEURONS, RELU);
     Layer action_out = Layer(NEURONS, ACTION_DIM, TANH);
 
-    Matrix max_action;
+    Tensor max_action;
 
-    Matrix out;
+    Tensor out;
 
 public:
-    explicit Actor(Matrix &max_action) {
+    explicit Actor(Tensor &max_action) {
         this->max_action = max_action;
     };
 
-    Matrix& forward(Matrix &x) {
+    Tensor& forward(Tensor &x) {
         out = fc1.forward(x);
         out = fc2.forward(out);
         out = fc3.forward(out);
@@ -40,23 +40,23 @@ private:
     Layer fc2 = Layer(NEURONS, NEURONS, RELU);
     Layer fc3 = Layer(NEURONS, NEURONS, RELU);
     Layer q_out = Layer(NEURONS, 1, NONE);
-    Matrix max_action;
+    Tensor max_action;
 
     // Miscelanious intermediate matricies. 
-    Matrix _adjusted_actions;
-    Matrix _loss_gradient;
-    Matrix _adjusted_in;
+    Tensor _adjusted_actions;
+    Tensor _loss_gradient;
+    Tensor _adjusted_in;
 
 public:
 
-    explicit Critic(Matrix &max_action) {
+    explicit Critic(Tensor &max_action) {
         this->max_action = max_action;
     };
 
-    Matrix& forward(const Matrix &x, const Matrix &actions) {
+    Tensor& forward(const Tensor &x, const Tensor &actions) {
         actions.copy(_adjusted_actions);
         _adjusted_actions.div_(max_action);
-        Matrix::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
+        Tensor::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
         fc1.forward(_adjusted_in);
         fc2.forward(fc1.out());
         fc3.forward(fc2.out());
@@ -64,7 +64,7 @@ public:
         return q_out.out();
     }
 
-    void backprop(const Matrix &actual, const Matrix &predicted) {
+    void backprop(const Tensor &actual, const Tensor &predicted) {
         predicted.copy(_loss_gradient);
         _loss_gradient.sub_(actual);
         q_out.compute_gradient(_loss_gradient);

@@ -26,20 +26,20 @@ private:
     // dE/db = dE/dz * dz/dy * dy/db = dE/dz * dz/dy (since dy/db = 1)
 
     // Error gradient w.r.t. the weights
-    Matrix weight_gradient;
+    Tensor weight_gradient;
     // Error gradient w.r.t. the bias
-    Matrix bias_gradient;
+    Tensor bias_gradient;
     // Error gradient w.r.t. the input of the next layer (whats passed into the following compute_gradient function)
-    Matrix out_error_gradient;
-    // An intermediate matrix for computing the gradient (represents the gradient of the error w.r.t. the output of linear layer)
-    Matrix _activation_gradient_transpose;
+    Tensor out_error_gradient;
+    // An intermediate tensor for computing the gradient (represents the gradient of the error w.r.t. the output of linear layer)
+    Tensor _activation_gradient_transpose;
 
     // The previous input value for the last forward call (x in y = xW^T + b)
-    Matrix in;
+    Tensor in;
     // The output from before the activation function of the last forward call (y in y = xW^T + b)
-    Matrix preactiv_out;
-    // A matrix which represents the output of last forward call
-    Matrix _out;
+    Tensor preactiv_out;
+    // A tensor which represents the output of last forward call
+    Tensor _out;
 
     // I enjoy calling variables fun (you could says I find it fun)
     ActivationFunction fun;
@@ -55,15 +55,15 @@ public:
         delete this->lin;
     }
 
-    Matrix& grad() {
+    Tensor& grad() {
         return this->out_error_gradient;
     }
 
-    Matrix& out() {
+    Tensor& out() {
         return this->_out;
     }
 
-    Matrix& forward(const Matrix &x) {
+    Tensor& forward(const Tensor &x) {
         this->in = x;
 
         lin->multiply(x, this->preactiv_out);
@@ -85,10 +85,10 @@ public:
     }
 
     // error_gradient is gradient of error with respect to the output of this function. (This function returns the previous layer's error gradient)
-    Matrix& compute_gradient(const Matrix &error_gradient) {
-        // This is one way to calculate the gradients. I don't use it since I'm pretty sure its wrong (doesn't do the backpropagation with respect to the weight matrix neurons properly)
+    Tensor& compute_gradient(const Tensor &error_gradient) {
+        // This is one way to calculate the gradients. I don't use it since I'm pretty sure its wrong (doesn't do the backpropagation with respect to the weight tensor neurons properly)
         // preactivation_error_gradient = error_gradient x activation_gradient (x indicates element wise multiplication)
-        // preactivation_error_gradient^T * input = weight gradient (* means actual matrix multiplication)
+        // preactivation_error_gradient^T * input = weight gradient (* means actual tensor multiplication)
         // preactivation_error_gradient * weight = new error gradient
         // preactivation_error_gradient = bias gradient (nice and simple!)
 
@@ -112,10 +112,10 @@ public:
         
         _activation_gradient_transpose.transpose(bias_gradient);
         weight_gradient.mul_(0);
-        Matrix::matrix_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
+        Tensor::tensor_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
 
         out_error_gradient.mul_(0);
-        Matrix::matrix_multiply(lin->weights, true, _activation_gradient_transpose, false, out_error_gradient);
+        Tensor::tensor_multiply(lin->weights, true, _activation_gradient_transpose, false, out_error_gradient);
         // This updates the model. Will have to be updated to use Adam optimizer.
         lin->weights.submul_(weight_gradient, LEARNING_RATE); 
         lin->bias.submul_(bias_gradient, LEARNING_RATE); 

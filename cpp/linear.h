@@ -1,6 +1,6 @@
 #pragma once
 
-#include "matrix.h"
+#include "tensor.h"
 #include <iostream>
 #include <random>
 #include <assert.h>
@@ -13,8 +13,8 @@ private:
     int _in_features;
     int _out_features;
 public:
-    Matrix weights;
-    Matrix bias;
+    Tensor weights;
+    Tensor bias;
 
     Linear(int in_features, int out_features) {
         random_device rd;
@@ -25,18 +25,18 @@ public:
         this->_in_features = in_features;
         this->_out_features = out_features;
         
-        weights = Matrix(out_features, in_features, [&](){return dis(gen);});
-        bias = Matrix(1, out_features, [&](){return dis(gen);});
+        weights = Tensor(out_features, in_features, [&](){return dis(gen);});
+        bias = Tensor(1, out_features, [&](){return dis(gen);});
     }
 
-    void multiply(const Matrix &x, Matrix &out) const {
+    void multiply(const Tensor &x, Tensor &out) const {
         assert(x.width == _in_features);
-        Matrix::setup_output_matrix(x.height, _out_features, out);
+        Tensor::setup_output_tensor(x.height, _out_features, out);
         for (int r = 0; r < out.height; ++r) {
             for (int c = 0; c < out.width; ++c) {
                 out.values[r * out.width + c] = bias.values[c];
             }
         }
-        Matrix::matrix_multiply(x, false, weights, true, out);
+        Tensor::tensor_multiply(x, false, weights, true, out);
     }
 };

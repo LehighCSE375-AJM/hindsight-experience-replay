@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "tensor.h"
 #include "layer.h"
 #include <vector>
 #include <iterator>
@@ -18,8 +18,8 @@ class Adam {
 private:
 	struct Adam_Param_State {
 		int64_t step = 0;
-		Matrix exp_avg;
-		Matrix exp_avg_sq;
+		Tensor exp_avg;
+		Tensor exp_avg_sq;
 	};
 	
 	vector<Layer> layers_;
@@ -54,7 +54,7 @@ public:
 			}
 
 			Adam_Param_State &state = this->state_.at(index);
-			Matrix &grad = it->grad();
+			Tensor &grad = it->grad();
 
 			state.step += 1;
 			double beta1 = this->betas[0];
@@ -71,8 +71,8 @@ public:
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
 			state.exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
 
-			// Copy Matrix using cute in place operations
-			Matrix denom = state.exp_avg_sq;
+			// Copy Tensor using cute in place operations
+			Tensor denom = state.exp_avg_sq;
 
 			// Compute v-hat
 			denom.div_(bias_correction1).sqrt_().add_(this->eps);
