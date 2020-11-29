@@ -138,8 +138,6 @@ public:
         out_error_gradient.mul_(0);
         Tensor::matrix_multiply(this->weights, true, _activation_gradient_transpose, false, out_error_gradient);
         // This updates the model. Will have to be updated to use Adam optimizer.
-        // this->weights.submul_(this->weights.grad(), LEARNING_RATE); 
-        // this->bias.submul_(this->bias.grad(), LEARNING_RATE); 
         return out_error_gradient;
     }
 };

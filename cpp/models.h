@@ -70,7 +70,7 @@ public:
 
 	explicit Critic(Tensor &max_action) {
 		this->max_action = max_action;
-		this->adam_opt = new Adam(this->parameters(), 0.001);
+		this->adam_opt = new Adam(this->parameters(), 0.00001);
 	};
 
 	~Critic() {
