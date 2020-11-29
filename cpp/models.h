@@ -53,6 +53,8 @@ public:
         this->max_action = max_action;
     };
 
+    Critic() { }
+
     Matrix& forward(const Matrix &x, const Matrix &actions) {
         actions.copy(_adjusted_actions);
         _adjusted_actions.div_(max_action);
