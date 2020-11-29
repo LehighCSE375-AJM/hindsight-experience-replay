@@ -1,6 +1,6 @@
 #pragma once
 
-#include "layer.h"
+#include "linear.h"
 
 #define OBSERVATION_DIM 1 // TODO
 #define GOAL_DIM 1 // TODO
@@ -9,10 +9,10 @@
 
 class Actor {
 private:
-    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
-    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
-    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
-    Layer action_out = Layer(NEURONS, ACTION_DIM, TANH);
+    Linear fc1 = Linear(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
+    Linear fc2 = Linear(NEURONS, NEURONS, RELU);
+    Linear fc3 = Linear(NEURONS, NEURONS, RELU);
+    Linear action_out = Linear(NEURONS, ACTION_DIM, TANH);
 
     Tensor max_action;
 
@@ -34,17 +34,17 @@ public:
 
     vector<Tensor*> parameters() {
         vector<Tensor*> result;
-        result.push_back(&fc1.lin->weights);
-        result.push_back(&fc1.lin->bias);
+        result.push_back(&fc1.weights);
+        result.push_back(&fc1.bias);
         
-        result.push_back(&fc2.lin->weights);
-        result.push_back(&fc2.lin->bias);
+        result.push_back(&fc2.weights);
+        result.push_back(&fc2.bias);
         
-        result.push_back(&fc3.lin->weights);
-        result.push_back(&fc3.lin->bias);
+        result.push_back(&fc3.weights);
+        result.push_back(&fc3.bias);
         
-        result.push_back(&action_out.lin->weights);
-        result.push_back(&action_out.lin->bias);
+        result.push_back(&action_out.weights);
+        result.push_back(&action_out.bias);
 
         return result;
     }
@@ -53,10 +53,10 @@ public:
 
 class Critic {
 private:
-    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
-    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
-    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
-    Layer q_out = Layer(NEURONS, 1, NONE);
+    Linear fc1 = Linear(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
+    Linear fc2 = Linear(NEURONS, NEURONS, RELU);
+    Linear fc3 = Linear(NEURONS, NEURONS, RELU);
+    Linear q_out = Linear(NEURONS, 1, NONE);
     Tensor max_action;
 
     // Miscelanious intermediate matricies. 
@@ -92,17 +92,17 @@ public:
 
     vector<Tensor*> parameters() {
         vector<Tensor*> result;
-        result.push_back(&fc1.lin->weights);
-        result.push_back(&fc1.lin->bias);
+        result.push_back(&fc1.weights);
+        result.push_back(&fc1.bias);
         
-        result.push_back(&fc2.lin->weights);
-        result.push_back(&fc2.lin->bias);
+        result.push_back(&fc2.weights);
+        result.push_back(&fc2.bias);
         
-        result.push_back(&fc3.lin->weights);
-        result.push_back(&fc3.lin->bias);
+        result.push_back(&fc3.weights);
+        result.push_back(&fc3.bias);
         
-        result.push_back(&q_out.lin->weights);
-        result.push_back(&q_out.lin->bias);
+        result.push_back(&q_out.weights);
+        result.push_back(&q_out.bias);
 
         return result;
     }

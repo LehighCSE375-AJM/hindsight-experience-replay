@@ -1,5 +1,4 @@
 #include "tensor.h"
-#include "layer.h"
 #include <vector>
 #include <iterator>
 #include <cmath>

@@ -1,6 +1,6 @@
 #include <iostream>
 #include <chrono>
-#include "linear.h"
+// #include "linear.h"
 #include "tensor.h"
 #include "models.h"
 #include "adam.h"
