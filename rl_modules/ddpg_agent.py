@@ -5,7 +5,12 @@ import numpy as np
 from mpi4py import MPI
 from mpi_utils.mpi_utils import sync_networks, sync_grads
 from rl_modules.replay_buffer import replay_buffer
+
 from rl_modules.models import actor, critic
+# from rl_modules.cpp_models import actor, critic
+
+# from rl_modules.cpp_optim import Adam
+
 from mpi_utils.normalizer import normalizer
 from her_modules.her import her_sampler
 
