@@ -1,7 +1,10 @@
 #pragma once
 
 #include "linear.h"
+
+#include "optimizer.h"
 #include "adam.h"
+#include "grad_descent.h"
 
 #define OBSERVATION_DIM 1 // TODO
 #define GOAL_DIM 1 // TODO
@@ -59,7 +62,7 @@ private:
 	Linear fc3 = Linear(NEURONS, NEURONS, RELU);
 	Linear q_out = Linear(NEURONS, 1, NONE);
 	Tensor max_action;
-	Adam* adam_opt;
+	Optimizer* optim;
 
 	// Miscelanious intermediate matricies. 
 	Tensor _adjusted_actions;
@@ -70,11 +73,12 @@ public:
 
 	explicit Critic(Tensor &max_action) {
 		this->max_action = max_action;
-		this->adam_opt = new Adam(this->parameters(), 0.00001);
+		// this->optim = new Adam(this->parameters(), 0.00001);
+		this->optim = new GradientDescent(this->parameters(), 0.00001);
 	};
 
 	~Critic() {
-		delete this->adam_opt;
+		delete this->optim;
 	}
 
 	Tensor& forward(const Tensor &x, const Tensor &actions) {
@@ -95,7 +99,7 @@ public:
 		fc3.compute_gradient(q_out.grad());
 		fc2.compute_gradient(fc3.grad());
 		fc1.compute_gradient(fc2.grad());
-		adam_opt->step();
+		optim->step();
 	}
 
 	vector<Tensor*> parameters() {

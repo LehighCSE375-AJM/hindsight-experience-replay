@@ -1,5 +1,6 @@
 #pragma once
 
+#include "optimizer.h"
 #include "tensor.h"
 #include <vector>
 #include <iterator>
@@ -18,7 +19,7 @@
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/include/torch/optim/optimizer.h
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/src/optim/optimizer.cpp
  */
-class Adam {
+class Adam: public Optimizer {
 private:
 	struct Adam_Param_State {
 		int64_t step = 0;
