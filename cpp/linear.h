@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "linear.h"
 #include <random>
 
 enum ActivationFunction {
@@ -48,13 +47,10 @@ private:
     // I enjoy calling variables fun (you could says I find it fun)
     ActivationFunction fun;
 public:
-    // Linear *lin;
     Tensor weights;
     Tensor bias;
     
     Linear(int in_features, int out_features, ActivationFunction fun) {
-        // this->lin = new Linear(in_features, out_features);
-
         random_device rd;
         mt19937 gen(rd());
 
@@ -67,10 +63,6 @@ public:
         bias = Tensor(1, out_features, [&](){return dis(gen);});
 
         this->fun = fun;
-    }
-
-    ~Linear() {
-
     }
 
     Tensor& grad() {

@@ -26,7 +26,7 @@ public:
   int height = 0;
   int width = 0;
   double* values = NULL;
-  Tensor* grad;
+  Tensor* grad = NULL;
 
   Tensor() = default;
 
@@ -60,6 +60,7 @@ public:
 
   ~Tensor() {
     delete[] values;
+    delete grad;
   }
 
   // Sets up the tensor to output the from a tensor operation onto. 
