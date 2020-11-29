@@ -53,6 +53,21 @@ python3 server.py
 ```bash
 python3 demo.py --env-name=<environment name> --server-name=<server hostname>
 ```
+
+## Run Benchmarking
+#### Cuda Benchmark
+```bash
+./cuda_bench.sh <server hostname>
+```
+Logs duration to train model to cuda_bench.txt file. (if there are any errors while running ./cuda_bench.sh they are also sent to the .txt file. Not ideal, but it works)
+
+#### Parallel Benchmark
+```bash
+./parallel_bench.sh <server hostname> <number of threads>
+```
+Logs duration to train model to parallel_bench.txt file. (also redirects any errors to that file too) I've found that on my Jetson running with one thread occupies all the cpus on my Jetson (likely due to built in torch parallelism) so thats something to be aware of (increasing threads significantly slowed training down for me)
+
+
 ### Download the Pre-trained Model
 Please download them from the [Google Driver](https://drive.google.com/open?id=1dNzIpIcL4x1im8dJcUyNO30m_lhzO9K4), then put the `saved_models` under the current folder.
 
