@@ -3,12 +3,13 @@
 #include "optimizer.h"
 #include "tensor.h"
 #include <vector>
-#include <iterator>
 #include <cmath>
 
 
 /**
- * Class meant to follow semantics of torch.optim.Adam
+ * Optimizer class implementing the Adam algorithm
+ * 
+ * Class is meant to follow semantics of torch.optim.Adam
  * found at https://pytorch.org/docs/stable/_modules/torch/optim/adam.html#Adam
  * extends https://pytorch.org/docs/stable/_modules/torch/optim/optimizer.html#Optimizer
  * 
@@ -46,6 +47,10 @@ public:
 		this->params_ = params;
 		this->lr = lr;
 	}
+
+	/**
+	 * Destructor for Adam optimizer
+	 */
 	~Adam() {
 		
 	}
@@ -88,7 +93,6 @@ public:
 
 			// Compute v-hat
 			state.denom->div_(bias_correction1).sqrt_().add_(this->eps);
-
 			
 			// Update parameters
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
@@ -97,18 +101,4 @@ public:
 			param->addcdiv_(*state.exp_avg, *state.denom, -this->lr / bias_correction1);
 		}
 	}
-
-	/**
-	 * Take one step
-	 */
-	// void step()  {
-	// 	for (auto it = this->params_.begin(); it != this->params_.end(); ++it) {
-	// 		Tensor *param = *it;
-	// 		if (param->gradient == NULL) {
-	// 			continue;
-	// 		}
-
-	// 		param->submul_(param->grad(), lr);
-	// 	}
-	// }
 };
