@@ -52,26 +52,29 @@ public:
 	 * Destructor for Adam optimizer
 	 */
 	~Adam() {
-		
+		for (int i = 0; i < this->state_.size(); ++i) {
+			delete this->state_[i].exp_avg;
+			delete this->state_[i].exp_avg_sq;
+			delete this->state_[i].denom;
+		}
 	}
 
 	/**
 	 * Take one Adam step
 	 */
 	void step()  {
-		int index = 0;
-		for (auto it = this->params_.begin(); it != this->params_.end(); ++it, ++index) {
-			Tensor *param = *it;
+		for (int i = 0; i < this->params_.size(); ++i) {
+			Tensor *param = this->params_[i];
 			if (param->gradient == NULL) {
 				continue;
 			}
 			Tensor *grad = param->gradient;
 
 			// State initialization
-			if(index >= this->state_.size()) {
+			if(i >= this->state_.size()) {
 				this->state_.push_back({0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)});
 			}
-			Adam_Param_State &state = this->state_.at(index);
+			Adam_Param_State &state = this->state_[i];
 
 			state.step += 1;
 			double beta1 = this->betas[0];
@@ -82,23 +85,29 @@ public:
 
 			// Update biased first moment estimate 
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t 
-			state.exp_avg->mul_(beta1).add_(*grad, 1 - beta1);
+			// 1.8e+07 without
+			state.exp_avg->mul_(beta1).addmul_(*grad, 1 - beta1);
 
 			// Update biased second raw moment estimate
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
-			state.exp_avg_sq->mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
+			// 1.68e+7 without
+			state.exp_avg_sq->mul_(beta2).addsquaremul_(*grad, 1 - beta2);
 
 			// Copy Tensor
 			state.exp_avg_sq->copy(*state.denom);
 
 			// Compute v-hat
+			// 2.3e+7 without
 			state.denom->div_(bias_correction1).sqrt_().add_(this->eps);
 			
 			// Update parameters
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
 			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
+			// 1.78e+7 without
 			param->addcdiv_(*state.exp_avg, *state.denom, -this->lr / bias_correction1);
+
+			// 2.45e+07 with everything in place.
 		}
 	}
 };
