@@ -1,7 +1,7 @@
 program_NAME := a.out
 
 SRCS = learn.cpp
-HDRS = linear.h models.h matrix.h layer.h adam.h
+HDRS = models.h tensor.h linear.h adam.h
 OBJS := ${SRCS:.c=.o}
 
 CFLAGS += -m64 -O3 -g
