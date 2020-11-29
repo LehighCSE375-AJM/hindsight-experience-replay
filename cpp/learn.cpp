@@ -1,7 +1,6 @@
 #include <iostream>
 #include <chrono>
-#include "linear.h"
-#include "matrix.h"
+#include "tensor.h"
 #include "models.h"
 #include "adam.h"
 
@@ -10,15 +9,15 @@ using namespace std;
 
 int main() {
 
-    // So that it doesn't affect the input of the matrix
-    Matrix max_actions(1, 1, [](){ return 1;});
+    // So that it doesn't affect the input of the tensor
+    Tensor max_actions(1, 1, [](){ return 1;});
 
     Critic a = Critic(max_actions);
 
-    Matrix x;
-    Matrix actions;
-    Matrix out;
-    Matrix expected;
+    Tensor x;
+    Tensor actions;
+    Tensor out;
+    Tensor expected;
 
     auto start = chrono::high_resolution_clock::now();
 
@@ -27,10 +26,10 @@ int main() {
         int val1 = rand() % 50;
         int val2 = rand() % 50;
         int val3 = rand() % 50;
-        x = Matrix(1, 2, [&](int i) { return i == 0 ? val1 : val2; });
-        actions = Matrix(1, 1, [&]() { return val3; });
+        x = Tensor(1, 2, [&](int i) { return i == 0 ? val1 : val2; });
+        actions = Tensor(1, 1, [&]() { return val3; });
         out = a.forward(x, actions);
-        expected = Matrix(1, 1, [&](){ return (val1 + val2 + val3) * 2; });
+        expected = Tensor(1, 1, [&](){ return (val1 + val2 + val3) * 2; });
         if (i % 100 == 0) {
             cout << "2 * (" << val1 << " + " << val2 << " + " << val3 << ") = " << (val1 + val2 + val3) * 2 << " =? " << out;
         }

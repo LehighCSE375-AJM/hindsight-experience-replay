@@ -1,6 +1,10 @@
 #pragma once
 
-#include "layer.h"
+#include "linear.h"
+
+#include "optimizer.h"
+#include "adam.h"
+#include "grad_descent.h"
 
 #define OBSERVATION_DIM 1 // TODO
 #define GOAL_DIM 1 // TODO
@@ -9,67 +13,109 @@
 
 class Actor {
 private:
-    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
-    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
-    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
-    Layer action_out = Layer(NEURONS, ACTION_DIM, TANH);
+	Linear fc1 = Linear(OBSERVATION_DIM + GOAL_DIM, NEURONS, RELU);
+	Linear fc2 = Linear(NEURONS, NEURONS, RELU);
+	Linear fc3 = Linear(NEURONS, NEURONS, RELU);
+	Linear action_out = Linear(NEURONS, ACTION_DIM, TANH);
 
-    Matrix max_action;
+	Tensor max_action;
 
-    Matrix out;
+	Tensor out;
 
 public:
-    explicit Actor(Matrix &max_action) {
-        this->max_action = max_action;
-    };
+	explicit Actor(Tensor &max_action) {
+		this->max_action = max_action;
+	};
 
-    Matrix& forward(Matrix &x) {
-        out = fc1.forward(x);
-        out = fc2.forward(out);
-        out = fc3.forward(out);
-        out = action_out.forward(out);
-        out.mul_(max_action);
-        return out;
-    }
+	Tensor& forward(Tensor &x) {
+		out = fc1.forward(x);
+		out = fc2.forward(out);
+		out = fc3.forward(out);
+		out = action_out.forward(out);
+		out.mul_(max_action);
+		return out;
+	}
+
+	vector<Tensor*> parameters() {
+		vector<Tensor*> result;
+		result.push_back(&fc1.weights);
+		result.push_back(&fc1.bias);
+		
+		result.push_back(&fc2.weights);
+		result.push_back(&fc2.bias);
+		
+		result.push_back(&fc3.weights);
+		result.push_back(&fc3.bias);
+		
+		result.push_back(&action_out.weights);
+		result.push_back(&action_out.bias);
+
+		return result;
+	}
 };
 
 
 class Critic {
 private:
-    Layer fc1 = Layer(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
-    Layer fc2 = Layer(NEURONS, NEURONS, RELU);
-    Layer fc3 = Layer(NEURONS, NEURONS, RELU);
-    Layer q_out = Layer(NEURONS, 1, NONE);
-    Matrix max_action;
+	Linear fc1 = Linear(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
+	Linear fc2 = Linear(NEURONS, NEURONS, RELU);
+	Linear fc3 = Linear(NEURONS, NEURONS, RELU);
+	Linear q_out = Linear(NEURONS, 1, NONE);
+	Tensor max_action;
+	Optimizer* optim;
 
-    // Miscelanious intermediate matricies. 
-    Matrix _adjusted_actions;
-    Matrix _loss_gradient;
-    Matrix _adjusted_in;
+	// Miscelanious intermediate matricies. 
+	Tensor _adjusted_actions;
+	Tensor _loss_gradient;
+	Tensor _adjusted_in;
 
 public:
 
-    explicit Critic(Matrix &max_action) {
-        this->max_action = max_action;
-    };
+	explicit Critic(Tensor &max_action) {
+		this->max_action = max_action;
+		// this->optim = new Adam(this->parameters(), 0.00001);
+		this->optim = new GradientDescent(this->parameters(), 0.00001);
+	};
 
-    Matrix& forward(const Matrix &x, const Matrix &actions) {
-        actions.copy(_adjusted_actions);
-        _adjusted_actions.div_(max_action);
-        Matrix::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
-        fc1.forward(_adjusted_in);
-        fc2.forward(fc1.out());
-        fc3.forward(fc2.out());
-        q_out.forward(fc3.out());
-        return q_out.out();
-    }
+	~Critic() {
+		delete this->optim;
+	}
 
-    void backprop(const Matrix &actual, const Matrix &predicted) {
-        predicted.copy(_loss_gradient);
-        _loss_gradient.sub_(actual);
-        q_out.compute_gradient(_loss_gradient);
-        fc3.compute_gradient(q_out.grad());
-        fc2.compute_gradient(fc3.grad());
-        fc1.compute_gradient(fc2.grad());
-    }
+	Tensor& forward(const Tensor &x, const Tensor &actions) {
+		actions.copy(_adjusted_actions);
+		_adjusted_actions.div_(max_action);
+		Tensor::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
+		fc1.forward(_adjusted_in);
+		fc2.forward(fc1.out());
+		fc3.forward(fc2.out());
+		q_out.forward(fc3.out());
+		return q_out.out();
+	}
+
+	void backprop(const Tensor &actual, const Tensor &predicted) {
+		predicted.copy(_loss_gradient);
+		_loss_gradient.sub_(actual);
+		q_out.compute_gradient(_loss_gradient);
+		fc3.compute_gradient(q_out.grad());
+		fc2.compute_gradient(fc3.grad());
+		fc1.compute_gradient(fc2.grad());
+		optim->step();
+	}
+
+	vector<Tensor*> parameters() {
+		vector<Tensor*> result;
+		result.push_back(&fc1.weights);
+		result.push_back(&fc1.bias);
+		
+		result.push_back(&fc2.weights);
+		result.push_back(&fc2.bias);
+		
+		result.push_back(&fc3.weights);
+		result.push_back(&fc3.bias);
+		
+		result.push_back(&q_out.weights);
+		result.push_back(&q_out.bias);
+
+		return result;
+	}
 };

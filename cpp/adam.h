@@ -1,5 +1,7 @@
-#include "matrix.h"
-#include "layer.h"
+#pragma once
+
+#include "optimizer.h"
+#include "tensor.h"
 #include <vector>
 #include <iterator>
 #include <cmath>
@@ -13,32 +15,39 @@
  * cpp implementation here
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/include/torch/optim/adam.h
  * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/src/optim/adam.cpp
+ * 
+ * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/include/torch/optim/optimizer.h
+ * https://github.com/pytorch/pytorch/blob/master/torch/csrc/api/src/optim/optimizer.cpp
  */
-class Adam {
+class Adam: public Optimizer {
 private:
 	struct Adam_Param_State {
 		int64_t step = 0;
-		Matrix exp_avg;
-		Matrix exp_avg_sq;
+		Tensor* exp_avg;
+		Tensor* exp_avg_sq;
+		Tensor* denom;
 	};
 	
-	vector<Layer> layers_;
+	vector<Tensor*> params_;
 	vector<Adam_Param_State> state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
 	double eps = 1E-8L;
 public:
 
-	// @param lr is the learning rate, default 0.001
-	Adam(vector<Layer> params, double lr = 1E-3L) {
-		this->layers_ = params;
+	/**
+	 * Constructor for the Adam optimizer
+	 * 
+	 * NOTE: We call the parameter learning rate but the Adam paper calls it step size
+	 * @param params is an iterator of tensors in the order [weight, bias, weight ... ]
+	 * @param lr is the learning rate, default 0.001
+	 */
+	Adam(vector<Tensor*> params, double lr = 1E-3L) {
+		this->params_ = params;
 		this->lr = lr;
 	}
-
-	// @param lr is the learning rate, default 0.001
-	Adam(Layer& params, double lr = 1E-3L) {
-		this->layers_.push_back(params);
-		this->lr = lr;
+	~Adam() {
+		
 	}
 
 	/**
@@ -46,15 +55,18 @@ public:
 	 */
 	void step()  {
 		int index = 0;
-		for (auto it = this->layers_.begin(); it != this->layers_.end(); ++it, ++index) {
+		for (auto it = this->params_.begin(); it != this->params_.end(); ++it, ++index) {
+			Tensor *param = *it;
+			if (param->gradient == NULL) {
+				continue;
+			}
+			Tensor *grad = param->gradient;
+
 			// State initialization
 			if(index >= this->state_.size()) {
-				Adam_Param_State state = {0, it->lin->weights.zeros(), it->lin->weights.zeros()};
-				this->state_.push_back(state);
+				this->state_.push_back({0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)});
 			}
-
 			Adam_Param_State &state = this->state_.at(index);
-			Matrix &grad = it->grad();
 
 			state.step += 1;
 			double beta1 = this->betas[0];
@@ -65,24 +77,38 @@ public:
 
 			// Update biased first moment estimate 
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t 
-			state.exp_avg.mul_(beta1).add_(grad, 1 - beta1);
+			state.exp_avg->mul_(beta1).add_(*grad, 1 - beta1);
 
 			// Update biased second raw moment estimate
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
-			state.exp_avg_sq.mul_(beta2).addcmul_(grad, grad, 1 - beta2);
+			state.exp_avg_sq->mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
 
-			// Copy Matrix using cute in place operations
-			Matrix denom = state.exp_avg_sq;
+			// Copy Tensor
+			state.exp_avg_sq->copy(*state.denom);
 
 			// Compute v-hat
-			denom.div_(bias_correction1).sqrt_().add_(this->eps);
+			state.denom->div_(bias_correction1).sqrt_().add_(this->eps);
 
 			
 			// Update parameters
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
 			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
-			it->lin->weights.addcdiv_(state.exp_avg, denom, -this->lr / bias_correction1);
+			param->addcdiv_(*state.exp_avg, *state.denom, -this->lr / bias_correction1);
 		}
 	}
+
+	/**
+	 * Take one step
+	 */
+	// void step()  {
+	// 	for (auto it = this->params_.begin(); it != this->params_.end(); ++it) {
+	// 		Tensor *param = *it;
+	// 		if (param->gradient == NULL) {
+	// 			continue;
+	// 		}
+
+	// 		param->submul_(param->grad(), lr);
+	// 	}
+	// }
 };
