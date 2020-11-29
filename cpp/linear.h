@@ -29,9 +29,9 @@ private:
     int _out_features;
 
     // Error gradient w.r.t. the weights
-    Tensor weight_gradient;
+    // Tensor weight_gradient;
     // Error gradient w.r.t. the bias
-    Tensor bias_gradient;
+    // Tensor bias_gradient;
     // Error gradient w.r.t. the input of the next layer (whats passed into the following compute_gradient function)
     Tensor out_error_gradient;
     // An intermediate tensor for computing the gradient (represents the gradient of the error w.r.t. the output of linear layer)
@@ -131,15 +131,15 @@ public:
         preactiv_out.transpose(_activation_gradient_transpose);
         _activation_gradient_transpose.mul_(error_gradient);
         
-        _activation_gradient_transpose.transpose(bias_gradient);
-        weight_gradient.mul_(0);
-        Tensor::matrix_multiply(_activation_gradient_transpose, false, in, false, weight_gradient);
+        _activation_gradient_transpose.transpose(this->bias.grad());
+        this->weights.grad().mul_(0);
+        Tensor::matrix_multiply(_activation_gradient_transpose, false, in, false, this->weights.grad());
 
         out_error_gradient.mul_(0);
         Tensor::matrix_multiply(this->weights, true, _activation_gradient_transpose, false, out_error_gradient);
         // This updates the model. Will have to be updated to use Adam optimizer.
-        this->weights.submul_(weight_gradient, LEARNING_RATE); 
-        this->bias.submul_(bias_gradient, LEARNING_RATE); 
+        // this->weights.submul_(this->weights.grad(), LEARNING_RATE); 
+        // this->bias.submul_(this->bias.grad(), LEARNING_RATE); 
         return out_error_gradient;
     }
 };

@@ -1,3 +1,5 @@
+#pragma once
+
 #include "tensor.h"
 #include <vector>
 #include <iterator>
@@ -42,6 +44,9 @@ public:
 		this->params_ = params;
 		this->lr = lr;
 	}
+	~Adam() {
+		
+	}
 
 	/**
 	 * Take one Adam step
@@ -50,10 +55,10 @@ public:
 		int index = 0;
 		for (auto it = this->params_.begin(); it != this->params_.end(); ++it, ++index) {
 			Tensor *param = *it;
-			if (param->grad == nullptr) {
+			if (param->gradient == NULL) {
 				continue;
 			}
-			Tensor *grad = param->grad;
+			Tensor *grad = param->gradient;
 
 			// State initialization
 			if(index >= this->state_.size()) {
@@ -76,18 +81,19 @@ public:
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
 			state.exp_avg_sq.mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
 
-			// Copy Tensor using cute in place operations
-			Tensor denom = state.exp_avg_sq;
+			// Copy Tensor
+			Tensor *denom = new Tensor(state.exp_avg_sq.height, state.exp_avg_sq.width);
+			denom->copy(state.exp_avg_sq);
 
 			// Compute v-hat
-			denom.div_(bias_correction1).sqrt_().add_(this->eps);
+			denom->div_(bias_correction1).sqrt_().add_(this->eps);
 
 			
 			// Update parameters
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
 			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
-			param->addcdiv_(state.exp_avg, denom, -this->lr / bias_correction1);
+			param->addcdiv_(state.exp_avg, *denom, -this->lr / bias_correction1);
 		}
 	}
 };
