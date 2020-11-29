@@ -22,8 +22,8 @@ class Adam {
 private:
 	struct Adam_Param_State {
 		int64_t step = 0;
-		Tensor exp_avg;
-		Tensor exp_avg_sq;
+		Tensor* exp_avg;
+		Tensor* exp_avg_sq;
 	};
 	
 	vector<Tensor*> params_;
@@ -62,7 +62,7 @@ public:
 
 			// State initialization
 			if(index >= this->state_.size()) {
-				this->state_.push_back({0, param->zeros(), param->zeros()});
+				this->state_.push_back({0, new Tensor(param->height, param->width), new Tensor(param->height, param->width)});
 			}
 			Adam_Param_State &state = this->state_.at(index);
 
@@ -75,25 +75,25 @@ public:
 
 			// Update biased first moment estimate 
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t 
-			state.exp_avg.mul_(beta1).add_(*grad, 1 - beta1);
+			state.exp_avg->mul_(beta1).add_(*grad, 1 - beta1);
 
 			// Update biased second raw moment estimate
 			// m_t = beta_1 * m_(t-1) + (1 - beta_1) * g_t^2
-			state.exp_avg_sq.mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
+			state.exp_avg_sq->mul_(beta2).addcmul_(*grad, *grad, 1 - beta2);
 
 			// Copy Tensor
-			Tensor *denom = new Tensor(state.exp_avg_sq.height, state.exp_avg_sq.width);
-			denom->copy(state.exp_avg_sq);
+			Tensor denom = Tensor(state.exp_avg_sq->height, state.exp_avg_sq->width);
+			state.exp_avg_sq->copy(denom);
 
 			// Compute v-hat
-			denom->div_(bias_correction1).sqrt_().add_(this->eps);
+			denom.div_(bias_correction1).sqrt_().add_(this->eps);
 
 			
 			// Update parameters
 			// theta_t = theta_(t-1) + (-(step_size / (1 - beta_1^t)) * m_t / (v-hat_t + epsilon))
 			// We bake the bias_correction1 value for computing m-hat into the constant multiplier
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
-			param->addcdiv_(state.exp_avg, *denom, -this->lr / bias_correction1);
+			param->addcdiv_(*state.exp_avg, denom, -this->lr / bias_correction1);
 		}
 	}
 };
