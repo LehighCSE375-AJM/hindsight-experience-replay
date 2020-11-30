@@ -5,7 +5,6 @@
 #include <vector>
 #include <cmath>
 
-
 /**
  * Optimizer class implementing the Adam algorithm
  * 
@@ -52,7 +51,7 @@ public:
 	 * Destructor for Adam optimizer
 	 */
 	~Adam() {
-		
+		// Nothing to destruct?
 	}
 
 	/**

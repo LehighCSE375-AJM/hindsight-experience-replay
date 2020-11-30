@@ -158,26 +158,24 @@ public:
 		}
 	}
 
-	Tensor& add_(const double& d) {
+	Tensor& add_(double d) {
 		for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] += d;
 		}
 		return *this;
 	}
 
-	Tensor& add_(const Tensor& m1, const double& d) {
-		assert(this->height == m1.height);
-		assert(this->width == m1.width);
-		for (int i = 0; i < this->height * this->width; i++) {
-			this->values[i] += m1.values[i] + d;
-		}
+	Tensor& add_(const Tensor& m, double d) {
+		assert(this->height == m.height);
+		assert(this->width == m.width);
+		cblas_daxpy(height * width, 1, m.values, 1, values, 1);
 		return *this;
 	}
 
 	Tensor& sub_(const Tensor& m) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
-		cblas_daxpby(height * width, -1, m.values, 1, 1, values, 1);
+		cblas_daxpy(height * width, -1, m.values, 1, values, 1);
 		return *this;
 	}
 
