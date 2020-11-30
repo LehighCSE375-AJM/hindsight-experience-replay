@@ -215,6 +215,14 @@ public:
 		return *this;
 	}
 
+	// this = this + m * p
+	Tensor& addmul_(const Tensor& m, const double& p) {
+		assert(this->height == m.height);
+		assert(this->width == m.width);
+		cblas_daxpby(height * width, p, m.values, 1, 1, values, 1);
+		return *this;
+	}
+
 	// this = this - m * p
 	Tensor& submul_(const Tensor& m, const double& p) {
 		assert(this->height == m.height);
@@ -249,6 +257,16 @@ public:
 		assert(m1.width == m2.width);
 		for (int i = 0; i < this->height * this->width; i++) {
 				this->values[i] += val * m1.values[i] * m2.values[i];
+		}
+		return *this;
+	}
+
+	// this = this + m^2 * val
+	Tensor& addsquaremul_(const Tensor& m, const double& val) {
+		assert(this->height == m.height);
+		assert(this->width == m.width);
+		for (int i = 0; i < this->height * this->width; i++) {
+				this->values[i] += val * m.values[i] * m.values[i];
 		}
 		return *this;
 	}
