@@ -165,7 +165,7 @@ public:
 		return *this;
 	}
 
-	Tensor& add_(const Tensor& m, double d) {
+	Tensor& add_(const Tensor& m) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
 		cblas_daxpy(height * width, 1, m.values, 1, values, 1);
