@@ -1,6 +1,8 @@
-program_NAME := a.out
+program_NAME := learn
 
 SRCS = learn.cpp
+CU_SRCS = test.cu
+
 HDRS = $(wildcard *.h)
 OBJS := ${SRCS:.c=.o}
 
@@ -11,6 +13,7 @@ program_INCLUDE_DIRS := ${OPENBLAS_DIR}
 CFLAGS += -I $(program_INCLUDE_DIRS)
 
 CC=g++
+CU=nvcc
 
 .PHONY: all
 
@@ -19,5 +22,9 @@ all: $(program_NAME)
 $(program_NAME): $(OBJS) $(HDRS)
 	$(CC) $(OBJS) -o $(program_NAME) $(CFLAGS)
 
+cuda: $(CU_SRCS) $(HDRS)
+	$(CU) $(CU_SRCS) -o cuda_$(program_NAME) $(CFLAGS)
+
 clean: 
-	rm a.out
+	rm $(program_NAME)
+	rm cuda_$(program_NAME)
