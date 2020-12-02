@@ -22,5 +22,14 @@ RUN pip3 -vv install mpi4py
 RUN pip3 -vv install gym
 
 # Useful tools. More will likely need to be added.
-RUN apt-get install -y git man curl gdb openssh-client
+RUN apt-get install -y git man curl gdb openssh-client vim
 
+# Setup openblas
+ENV OPENBLAS_DIR=/opt/openblas
+RUN mkdir $OPENBLAS_DIR
+RUN git clone https://github.com/xianyi/OpenBLAS
+WORKDIR /OpenBLAS
+# This is the nonthreaded version of openblas (see: https://github.com/bgeneto/build-install-compile-openblas)
+RUN make -j DYNAMIC_ARCH=0 CC=gcc FC=gfortran HOSTCC=gcc BINARY=64 INTERFACE=64 NO_AFFINITY=1 NO_WARMUP=1 USE_OPENMP=0 USE_THREAD=0 USE_LOCKING=1
+RUN make PREFIX=$OPENBLAS_DIR install
+WORKDIR /
