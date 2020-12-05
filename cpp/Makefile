@@ -10,7 +10,7 @@ CFLAGS = -O3 -g -lopenblas
 
 program_INCLUDE_DIRS := ${OPENBLAS_DIR}
 
-CFLAGS += -I $(program_INCLUDE_DIRS)
+CFLAGS += $(if $(program_INCLUDE_DIRS),-I $(program_INCLUDE_DIRS),)
 
 CC=g++
 CU=nvcc
