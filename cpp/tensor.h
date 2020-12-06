@@ -6,6 +6,8 @@
 #include <cassert>
 #include <utility>
 #include "cblas.h"
+#include "cuda_utils.h"
+#include "math.h"
 
 using namespace std;
 
@@ -28,6 +30,9 @@ public:
 	double* values = NULL;
 	Tensor* gradient = NULL;
 
+	double* d_values = NULL;
+	Tensor* d_gradient = NULL;
+
 	Tensor() = default;
 
 	Tensor(int height, int width) {
@@ -47,6 +52,28 @@ public:
 
 	Tensor(int height, int width, function<double(int, int)> initializer) {
 		initialize(height, width, std::move(initializer));
+	}
+
+	// Makes this tensor a cuda tensor (can only be cuda or cpu, but not both at the same time)
+	void cudafy() {
+		// TODO also have to copy grad
+		gpuErrchk(cudaMalloc((void **) &d_values, sizeof(double) * height * width));
+		gpuErrchk(cudaMemcpy(d_values, values, sizeof(double) * height * width, cudaMemcpyHostToDevice));
+		delete[] values;
+		values = nullptr;
+	}
+
+	// Height and width will never be changed (since those are copied when passed to the 
+	// kernel) so if they are modified by the kernel that will likely break this. Probably 
+	// need to make a d_height, d_width but I'm not certain (uncudafy may never need to be 
+	// called when we do an actual persistent kernel which makes the separate d_height, 
+	// d_width just unneccesary overhead) Makes it no longer a cuda tensor (always either 
+	// cuda, or cpu tensor but not both)
+	void uncudafy() {
+		values = new double[height * width];
+		gpuErrchk(cudaMemcpy(values, d_values, sizeof(double) * height * width, cudaMemcpyDeviceToHost));
+		cudaFree((void **) &d_values);
+		d_values = nullptr;
 	}
 
 	Tensor& grad() {
@@ -79,25 +106,54 @@ public:
 
 	// Sets up the tensor to output the from a tensor operation onto. 
 	// This function is advantageous since it will only cause the tensor to allocate a new double array if the tensor is not the proper size. 
-	static void setup_output_tensor(int height, int width, Tensor &m) {
+	__host__ __device__ static void setup_output_tensor(int height, int width, Tensor &m) {
+#ifdef __CUDA_ARCH__
+		// This is a static function so no possible colision with this->height, this->width
 		if (height * width != m.height * m.width) {
-			// This should only be printed during the first pass of training. 
-			cout << "Updating output tensor" << endl;
 			m.height = height;
 			m.width = width;
+			// This is some fancy code to make sure all the threads point to the same matrix values
+			// I think it works (probably, maybe)
+			__shared__ double *new_d_ptr;
+			if (threadIdx.x == 0) {
+				printf("Updating output tensor\n");
+				new_d_ptr = new double[height * width];
+				// May want to zero values? idk
+			}
+			__syncthreads();
+			m.d_values = new_d_ptr;
+		}
+#else
+		if (height * width != m.height * m.width) {
+			// This should only be printed during the first pass of training. 
+			m.height = height;
+			m.width = width;
+			cout << "Updating output tensor" << endl;
 			m.values = new double[height * width];
 			// cblas way of zeroeing a tensor.
 			m.mul_(0);
 		}
+#endif
 	}
 
 	// Calculates the relu function and writies the output to the passed in tensor
 	// Means can reuse already alocated matricies. 
-	void relu(Tensor &m) const {
+	__host__ __device__ void relu(Tensor &m) const {
 		setup_output_tensor(height, width, m);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		// Warp divergence (although I don't think this is all that bad)
+		while (i < height * width) {
+			double in_val = d_values[i];
+			// Not sure how this type of if statement works with cuda warp divergence. 
+			m.d_values[i] = in_val < 0 ? 0 : in_val;
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < height * width; ++i) {
 			m.values[i] = max(0., values[i]);
 		}
+#endif
 	}
 
 	// Computes the gradient of the relu function for each element in place
@@ -110,11 +166,22 @@ public:
 
 	// Calculates the tanh function and writies the output to the passed in tensor
 	// This has the advantage that we don't need to allocate a whole bunch of new space each time we run this function. 
-	void tanh(Tensor &m) const {
+	__host__ __device__ void tanh(Tensor &m) const {
 		setup_output_tensor(height, width, m);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		// Possible warp divergence
+		while (i < height * width) {
+			double in_val = d_values[i];
+			// There may be an inaccurate fast version of tanh which we may want to look into
+			m.d_values[i] = std::tanh(in_val);
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < height * width; ++i) {
 			m.values[i] = std::tanh(values[i]);
 		}
+#endif
 	}
 
 	// Computes the gradient of the tanh function for each element in place. 
@@ -127,9 +194,18 @@ public:
 	}
 
 	// Copies the values from this tensor onto the passed in tensor. 
-	void copy(Tensor &m) const {
+	__host__ __device__ void copy(Tensor &m) const {
 		setup_output_tensor(height, width, m);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		// Warp divergence?
+		while (i < height * width) {
+			m.d_values[i] = this->d_values[i];
+			i += blockDim.x;
+		}
+#else
 		cblas_dcopy(height * width, values, 1, m.values, 1);
+#endif
 	}
 	
 	Tensor zeros() const {
@@ -298,6 +374,17 @@ public:
 		setup_output_tensor(1, m1.width + m2.width, out);
 		cblas_dcopy(m1.width, m1.values, 1, out.values, 1);
 		cblas_dcopy(m2.width, m2.values, 1, &(out.values[m1.width]), 1);
+	}
+
+	__device__ void print() {
+		if (threadIdx.x == 0) {
+			for (int i = 0; i < height * width; ++i) {
+				printf(" %g ", d_values[i]);
+				if (i % width == width - 1) {
+					printf("\n");
+				}
+			}
+		}
 	}
 };
 
