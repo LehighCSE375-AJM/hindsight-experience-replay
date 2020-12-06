@@ -3,7 +3,10 @@ program_NAME := learn
 SRCS = learn.cpp
 CU_SRCS = test.cu
 
-HDRS = $(wildcard *.h)
+ALL_HDRS = $(wildcard *.h)
+CUDA_HDRS = $(wildcard cuda_*.h)
+MAIN_HDRS := $(filter-out $(CUDA_HDRS), $(ALL_HDRS))
+
 OBJS := ${SRCS:.c=.o}
 
 CFLAGS = -O3 -g -lopenblas
@@ -19,10 +22,10 @@ CU=nvcc
 
 all: $(program_NAME)
 
-$(program_NAME): $(OBJS) $(HDRS)
+$(program_NAME): $(OBJS) $(MAIN_HDRS)
 	$(CC) $(OBJS) -o $(program_NAME) $(CFLAGS)
 
-cuda: $(CU_SRCS) $(HDRS)
+cuda_$(program_NAME): $(CU_SRCS) $(ALL_HDRS)
 	$(CU) $(CU_SRCS) -o cuda_$(program_NAME) $(CFLAGS)
 
 clean: 
