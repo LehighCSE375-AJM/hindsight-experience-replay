@@ -34,6 +34,17 @@ public:
 		initialize(height, width, [&](int _1, int _2){return 0;});
 	}
 
+	Tensor(int height, int width, double* init) {
+		this->height = height;
+		this->width = width;
+		this->values = new double[height * width];
+		for (int i = 0; i < height * width; ++i) {
+			// int row = i / width;
+			// int column = i % width;
+			values[i] = init[i];
+		}
+	}
+
 	Tensor(int height, int width, function<double()> initializer) {
 		initialize(height, width, [&](int _1, int _2){return initializer();});
 	}

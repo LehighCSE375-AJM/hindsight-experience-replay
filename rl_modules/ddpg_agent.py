@@ -6,10 +6,10 @@ from mpi4py import MPI
 from mpi_utils.mpi_utils import sync_networks, sync_grads
 from rl_modules.replay_buffer import replay_buffer
 
-from rl_modules.models import actor, critic
-# from rl_modules.cpp_models import actor, critic
+from rl_modules.models import critic #actor, critic
+from rl_modules.cpp_models import actor #, critic
 
-# from rl_modules.cpp_optim import Adam
+from rl_modules.cpp_optim import Adam
 
 from mpi_utils.normalizer import normalizer
 from her_modules.her import her_sampler
@@ -24,26 +24,30 @@ class ddpg_agent:
         self.client = client
         self.env_params = env_params
         # create the network
-        self.actor_network = actor(env_params)
+
+        print(env_params)
+
+        self.actor_network = actor(env_params=env_params)
         self.critic_network = critic(env_params)
         # sync the networks across the cpus
-        sync_networks(self.actor_network)
+        ### sync_networks(self.actor_network)
         sync_networks(self.critic_network)
         # build up the target network
-        self.actor_target_network = actor(env_params)
+        ### self.actor_target_network = actor(env_params)
         self.critic_target_network = critic(env_params)
         # load the weights into the target networks
-        self.actor_target_network.load_state_dict(self.actor_network.state_dict())
+        ### self.actor_target_network.load_state_dict(self.actor_network.state_dict())
+        self.actor_target_network = self.actor_network.copy()
         self.critic_target_network.load_state_dict(self.critic_network.state_dict())
         # if use gpu
-        if self.args.cuda:
-            self.actor_network.cuda()
-            self.critic_network.cuda()
-            self.actor_target_network.cuda()
-            self.critic_target_network.cuda()
+        # if self.args.cuda:
+        #     self.actor_network.cuda()
+        #     self.critic_network.cuda()
+        #     self.actor_target_network.cuda()
+        #     self.critic_target_network.cuda()
         # create the optimizer
         #### self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr=self.args.lr_actor)
-        self.actor_optim = Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
+        self.actor_optim = Adam(actor=self.actor_network, lr=self.args.lr_actor)
         exit(0)
         self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
         # her sampler

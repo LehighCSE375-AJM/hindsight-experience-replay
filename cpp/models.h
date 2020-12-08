@@ -27,6 +27,23 @@ public:
 		this->max_action = max_action;
 	};
 
+	explicit Actor(int obs, int goal, int action, Tensor &max_action) {
+		this->max_action = max_action;
+		fc1 = Linear(obs + goal, 256, RELU);
+		fc2 = Linear(256, 256, RELU);
+		fc3 = Linear(256, 256, RELU);
+		action_out = Linear(256, action, TANH);
+	};
+
+	explicit Actor(const Actor &other)
+	{
+		this->max_action = other.max_action;
+		fc1 = other.fc1;
+		fc2 = other.fc2;
+		fc3 = other.fc3;
+		action_out = other.action_out;
+	}
+
 	Tensor& forward(Tensor &x) {
 		out = fc1.forward(x);
 		out = fc2.forward(out);

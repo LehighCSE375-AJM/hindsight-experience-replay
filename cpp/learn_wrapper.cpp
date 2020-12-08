@@ -12,7 +12,7 @@ class wrapper_class
 {
 public:
 	Matrix max_actions;
-	Critic* a;
+	Critic* a;	
 
 	Matrix x;
 	Matrix actions;

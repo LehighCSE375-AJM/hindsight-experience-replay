@@ -5,7 +5,7 @@ import pickle
 from _thread import *
 from communication_consts import BYE_CMD, COMPUTE_REWARD_CMD, GET_ACTION_SPACE_CMD, GET_MAX_EPISODE_STEPS_CMD, MAKE_ENV_CMD, PORT, RENDER_CMD, RESET_ENV_CMD, SEED_CMD, STEP_CMD
 
-ADDR = socket.gethostname()
+ADDR = '192.168.112.162' #socket.gethostname()
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--threads', type=int, default=1, help='the number of threads to listen to')
