@@ -35,6 +35,9 @@ class critic(nn.Module):
         self.q_out = nn.Linear(256, 1)
 
     def forward(self, x, actions):
+        print(":")
+        print(len(x.tolist()[0]))
+        print(len((actions / self.max_action).tolist()))
         x = torch.cat([x, actions / self.max_action], dim=1)
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))

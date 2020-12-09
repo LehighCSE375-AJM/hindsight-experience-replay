@@ -88,6 +88,14 @@ public:
 		delete gradient;
 	}
 
+	double* get_values() {
+		return this->values;
+	}
+
+	int get_size() {
+		return this->height * this->width;
+	}
+
 	// Sets up the tensor to output the from a tensor operation onto. 
 	// This function is advantageous since it will only cause the tensor to allocate a new double array if the tensor is not the proper size. 
 	static void setup_output_tensor(int height, int width, Tensor &m) {

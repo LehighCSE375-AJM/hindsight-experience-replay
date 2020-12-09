@@ -48,7 +48,6 @@ class ddpg_agent:
         # create the optimizer
         #### self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr=self.args.lr_actor)
         self.actor_optim = Adam(actor=self.actor_network, lr=self.args.lr_actor)
-        exit(0)
         self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
         # her sampler
         self.her_module = her_sampler(self.args.replay_strategy, self.args.replay_k, self.client)
@@ -87,7 +86,7 @@ class ddpg_agent:
                     for t in range(self.env_params['max_timesteps']):
                         with torch.no_grad():
                             input_tensor = self._preproc_inputs(obs, g)
-                            pi = self.actor_network(input_tensor)
+                            pi = self.actor_network.forward(input_tensor)
                             action = self._select_actions(pi)
                         # feed the actions into the environment
                         observation_new, _, _, info = self.client.step_enviroment(action)
@@ -217,8 +216,11 @@ class ddpg_agent:
         with torch.no_grad():
             # do the normalization
             # concatenate the stuffs
-            actions_next = self.actor_target_network(inputs_next_norm_tensor)
-            q_next_value = self.critic_target_network(inputs_next_norm_tensor, actions_next)
+            print("start")
+            actions_next = self.actor_target_network.forward(inputs_next_norm_tensor)
+            print("finish")
+            # print(actions_next.tolist()) #####
+            q_next_value = self.critic_target_network.forward(inputs_next_norm_tensor, actions_next)
             q_next_value = q_next_value.detach()
             target_q_value = r_tensor + self.args.gamma * q_next_value
             target_q_value = target_q_value.detach()

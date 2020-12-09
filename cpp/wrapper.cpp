@@ -23,6 +23,7 @@ class actor_wrapper
 public:
 	Actor* actor;
 	vector<Tensor *> parameters;
+	Tensor* forward_result;
 
 	actor_wrapper(int obs, int goal, int action, double action_max)
 	{
@@ -35,7 +36,13 @@ public:
 	{
 		actor = new Actor(*(from->actor));
 	}
+
+	void test()
+	{
+		cout << *forward_result << endl;
+	}
 };
+
 
 extern "C"
 {
@@ -53,6 +60,33 @@ extern "C"
 	{
 		a->parameters = a->actor->parameters();
 		return a->parameters;
+	}
+
+	void actor_forward(actor_wrapper* a, double* input, int height, int width)
+	{
+		// cout << "Length: " << len << endl;
+		Tensor input_tensor(height, width, input);
+		// cout << "Input:" << endl;
+		// cout << input_tensor << endl;
+		a->forward_result = &(a->actor->forward(input_tensor));
+		// cout << "Result:" << endl;
+		// cout << *(a->forward_result) << endl;
+		// cout << tmp << endl;
+		// a->test();
+	}
+
+	void get_actor_forward(actor_wrapper* a, double* out)
+	{
+		double* tmp = a->forward_result->get_values();
+		for (int i = 0; i < a->forward_result->get_size(); i++)
+		{
+			out[i] = tmp[i];
+		}
+	}
+
+	void test(actor_wrapper* a)
+	{
+		cout << *(a->forward_result) << endl;
 	}
 	
 	adam_wrapper* init_adam_from_actor(actor_wrapper* a, double lr)

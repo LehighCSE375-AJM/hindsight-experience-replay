@@ -35,8 +35,7 @@ public:
 		action_out = Linear(256, action, TANH);
 	};
 
-	explicit Actor(const Actor &other)
-	{
+	explicit Actor(const Actor &other) {
 		this->max_action = other.max_action;
 		fc1 = other.fc1;
 		fc2 = other.fc2;
@@ -49,7 +48,8 @@ public:
 		out = fc2.forward(out);
 		out = fc3.forward(out);
 		out = action_out.forward(out);
-		out.mul_(max_action);
+		// cout << out << endl;
+		// out.mul_(max_action); // multiplying by 1?
 		return out;
 	}
 

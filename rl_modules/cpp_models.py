@@ -1,4 +1,4 @@
-import ctypes
+import ctypes, torch
 
 libc = ctypes.cdll.LoadLibrary("cpp/wrapper.so")
 
@@ -24,6 +24,27 @@ class actor(object):
 	
 	def parameters(self):
 		return libc.actor_parameters(self.obj)
+
+	def forward(self, input_tensor):
+		height = list(input_tensor.shape)[0]
+		width = list(input_tensor.shape)[1]
+		print(f"Height: {height}, Width: {width}")
+		tmp = torch.flatten(input_tensor).tolist()
+		# print(tmp)
+		input_list = (ctypes.c_double * len(tmp))(*tmp)
+		# if len(tmp) != 13: print(f"Input len: {len(tmp)}")
+		libc.actor_forward(self.obj, input_list, height, width)
+
+		out = (ctypes.c_double * len(input_list))()
+		libc.get_actor_forward(self.obj, ctypes.byref(out))
+		out = list(out)
+		for i, x in enumerate(reversed(out)):
+			if x:
+				out = out[:-1*i]
+				break
+		if len(out) != 4: print(f"Forward len: {len(out)}")
+		return torch.tensor(out)
+
 
 
 
