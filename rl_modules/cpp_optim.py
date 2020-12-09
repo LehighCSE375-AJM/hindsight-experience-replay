@@ -9,3 +9,6 @@ class Adam(object):
 		elif actor:
 			lr = ctypes.c_double(lr)
 			self.obj = libc.init_adam_from_actor(actor.obj, lr)
+	
+	def step(self):
+		libc.actor_adam_step(self.obj)

@@ -118,14 +118,15 @@ class ddpg_agent:
                     # train the network
                     self._update_network()
                 # soft update
-                self._soft_update_target_network(self.actor_target_network, self.actor_network)
+                print("ITERATION")
+                ### self._soft_update_target_network(self.actor_target_network, self.actor_network) # TODO
                 self._soft_update_target_network(self.critic_target_network, self.critic_network)
             # start to do the evaluation
             success_rate = self._eval_agent()
             if MPI.COMM_WORLD.Get_rank() == 0:
                 print('[{}] epoch is: {}, eval success rate is: {:.3f}'.format(datetime.now(), epoch, success_rate))
-                torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network.state_dict()], \
-                            self.model_path + '/model.pt')
+                # torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network.state_dict()], \
+                #             self.model_path + '/model.pt')
 
     # pre_process the inputs
     def _preproc_inputs(self, obs, g):
@@ -216,9 +217,7 @@ class ddpg_agent:
         with torch.no_grad():
             # do the normalization
             # concatenate the stuffs
-            print("start")
             actions_next = self.actor_target_network.forward(inputs_next_norm_tensor)
-            print("finish")
             # print(actions_next.tolist()) #####
             q_next_value = self.critic_target_network.forward(inputs_next_norm_tensor, actions_next)
             q_next_value = q_next_value.detach()
@@ -231,13 +230,13 @@ class ddpg_agent:
         real_q_value = self.critic_network(inputs_norm_tensor, actions_tensor)
         critic_loss = (target_q_value - real_q_value).pow(2).mean()
         # the actor loss
-        actions_real = self.actor_network(inputs_norm_tensor)
+        actions_real = self.actor_network.forward(inputs_norm_tensor)
         actor_loss = -self.critic_network(inputs_norm_tensor, actions_real).mean()
         actor_loss += self.args.action_l2 * (actions_real / self.env_params['action_max']).pow(2).mean()
         # start to update the network
-        self.actor_optim.zero_grad()
+        ### self.actor_optim.zero_grad()
         actor_loss.backward()
-        sync_grads(self.actor_network)
+        ### sync_grads(self.actor_network)
         self.actor_optim.step()
         # update the critic_network
         self.critic_optim.zero_grad()
@@ -256,7 +255,7 @@ class ddpg_agent:
             for _ in range(self.env_params['max_timesteps']):
                 with torch.no_grad():
                     input_tensor = self._preproc_inputs(obs, g)
-                    pi = self.actor_network(input_tensor)
+                    pi = self.actor_network.forward(input_tensor)
                     # convert the actions
                     actions = pi.detach().cpu().numpy().squeeze()
                 observation_new, _, _, info = self.client.step_enviroment(actions)

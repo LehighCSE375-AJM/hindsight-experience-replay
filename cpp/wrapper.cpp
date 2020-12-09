@@ -62,17 +62,13 @@ extern "C"
 		return a->parameters;
 	}
 
-	void actor_forward(actor_wrapper* a, double* input, int height, int width)
+	void actor_forward(actor_wrapper* a, int* out_dim, double* input,
+						int height, int width)
 	{
-		// cout << "Length: " << len << endl;
 		Tensor input_tensor(height, width, input);
-		// cout << "Input:" << endl;
-		// cout << input_tensor << endl;
 		a->forward_result = &(a->actor->forward(input_tensor));
-		// cout << "Result:" << endl;
-		// cout << *(a->forward_result) << endl;
-		// cout << tmp << endl;
-		// a->test();
+		out_dim[0] = a->forward_result->get_height();
+		out_dim[1] = a->forward_result->get_width();
 	}
 
 	void get_actor_forward(actor_wrapper* a, double* out)
@@ -92,5 +88,10 @@ extern "C"
 	adam_wrapper* init_adam_from_actor(actor_wrapper* a, double lr)
 	{
 		return new adam_wrapper(a->parameters, lr);
+	}
+
+	void actor_adam_step(adam_wrapper* a)
+	{
+		a->a->step();
 	}
 }

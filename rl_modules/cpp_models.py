@@ -28,22 +28,20 @@ class actor(object):
 	def forward(self, input_tensor):
 		height = list(input_tensor.shape)[0]
 		width = list(input_tensor.shape)[1]
-		print(f"Height: {height}, Width: {width}")
+		# print(f"Height: {height}, Width: {width}")
 		tmp = torch.flatten(input_tensor).tolist()
-		# print(tmp)
-		input_list = (ctypes.c_double * len(tmp))(*tmp)
-		# if len(tmp) != 13: print(f"Input len: {len(tmp)}")
-		libc.actor_forward(self.obj, input_list, height, width)
 
-		out = (ctypes.c_double * len(input_list))()
+		input_list = (ctypes.c_double * len(tmp))(*tmp)
+		out_dim = (ctypes.c_int * 2)()
+		libc.actor_forward(self.obj, ctypes.byref(out_dim), input_list,
+							height, width)
+
+		# print(f"Output Height: {out_dim[0]}, Width: {out_dim[1]}")
+		out_len = out_dim[0] * out_dim[1]
+		out = (ctypes.c_double * out_len)()
 		libc.get_actor_forward(self.obj, ctypes.byref(out))
 		out = list(out)
-		for i, x in enumerate(reversed(out)):
-			if x:
-				out = out[:-1*i]
-				break
-		if len(out) != 4: print(f"Forward len: {len(out)}")
-		return torch.tensor(out)
+		return torch.tensor(out).reshape([out_dim[0], out_dim[1]])
 
 
 
