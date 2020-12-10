@@ -6,10 +6,10 @@ from mpi4py import MPI
 from mpi_utils.mpi_utils import sync_networks, sync_grads
 from rl_modules.replay_buffer import replay_buffer
 
-from rl_modules.models import actor #actor, critic
-from rl_modules.cpp_models import critic #, critic
+from rl_modules.models import critic #actor, critic
+from rl_modules.cpp_models import actor #, critic
 
-# from rl_modules.cpp_optim import Adam
+from rl_modules.cpp_optim import Adam
 
 from mpi_utils.normalizer import normalizer
 from her_modules.her import her_sampler
@@ -27,19 +27,18 @@ class ddpg_agent:
 
         print(env_params)
 
-        self.actor_network = actor(env_params) ###env_params=env_params)
-        self.critic_network = critic(env_params=env_params)
+        self.actor_network = actor(env_params=env_params)
+        self.critic_network = critic(env_params)
         # sync the networks across the cpus
-        sync_networks(self.actor_network)
-        ### sync_networks(self.critic_network)
+        ### sync_networks(self.actor_network)
+        sync_networks(self.critic_network)
         # build up the target network
-        self.actor_target_network = actor(env_params)
-        ### self.critic_target_network = critic(env_params)
+        ### self.actor_target_network = actor(env_params)
+        self.critic_target_network = critic(env_params)
         # load the weights into the target networks
-        self.actor_target_network.load_state_dict(self.actor_network.state_dict())
-        ### self.actor_target_network = self.actor_network.copy()
-        ### self.critic_target_network.load_state_dict(self.critic_network.state_dict())
-        self.critic_target_network = self.critic_network.copy()
+        ### self.actor_target_network.load_state_dict(self.actor_network.state_dict())
+        self.actor_target_network = self.actor_network.copy()
+        self.critic_target_network.load_state_dict(self.critic_network.state_dict())
         # if use gpu
         # if self.args.cuda:
         #     self.actor_network.cuda()
@@ -47,9 +46,9 @@ class ddpg_agent:
         #     self.actor_target_network.cuda()
         #     self.critic_target_network.cuda()
         # create the optimizer
-        self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr=self.args.lr_actor)
-        ### self.actor_optim = Adam(actor=self.actor_network, lr=self.args.lr_actor)
-        ### self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
+        #### self.actor_optim = torch.optim.Adam(self.actor_network.parameters(), lr=self.args.lr_actor)
+        self.actor_optim = Adam(actor=self.actor_network, lr=self.args.lr_actor)
+        self.critic_optim = torch.optim.Adam(self.critic_network.parameters(), lr=self.args.lr_critic)
         # her sampler
         self.her_module = her_sampler(self.args.replay_strategy, self.args.replay_k, self.client)
         # create the replay buffer
@@ -120,10 +119,9 @@ class ddpg_agent:
                     self._update_network()
                 # soft update
                 print("ITERATION")
-                self._soft_update_target_network(self.actor_target_network, self.actor_network)
-                ### self.actor_target_network.soft_update(self.actor_network, self.args.polyak)
-                ### self._soft_update_target_network(self.critic_target_network, self.critic_network)
-                self.critic_target_network.soft_update(self.critic_network, self.args.polyak)
+                ### self._soft_update_target_network(self.actor_target_network, self.actor_network) # TODO
+                self.actor_target_network.soft_update(self.actor_network, self.args.polyak)
+                self._soft_update_target_network(self.critic_target_network, self.critic_network)
             # start to do the evaluation
             success_rate = self._eval_agent()
             if MPI.COMM_WORLD.Get_rank() == 0:
@@ -230,22 +228,22 @@ class ddpg_agent:
             clip_return = 1 / (1 - self.args.gamma)
             target_q_value = torch.clamp(target_q_value, -clip_return, 0)
         # the q loss
-        real_q_value = self.critic_network.forward(inputs_norm_tensor, actions_tensor)
+        real_q_value = self.critic_network(inputs_norm_tensor, actions_tensor)
         critic_loss = (target_q_value - real_q_value).pow(2).mean()
         # the actor loss
         actions_real = self.actor_network.forward(inputs_norm_tensor)
-        actor_loss = -self.critic_network.forward(inputs_norm_tensor, actions_real).mean()
+        actor_loss = -self.critic_network(inputs_norm_tensor, actions_real).mean()
         actor_loss += self.args.action_l2 * (actions_real / self.env_params['action_max']).pow(2).mean()
         # start to update the network
-        self.actor_optim.zero_grad()
+        ### self.actor_optim.zero_grad()
         actor_loss.backward()
-        sync_grads(self.actor_network)
+        ### sync_grads(self.actor_network)
         self.actor_optim.step()
         # update the critic_network
-        ### self.critic_optim.zero_grad()
+        self.critic_optim.zero_grad()
         critic_loss.backward()
-        ### sync_grads(self.critic_network)
-        ### self.critic_optim.step()
+        sync_grads(self.critic_network)
+        self.critic_optim.step()
 
     # do the evaluation
     def _eval_agent(self):

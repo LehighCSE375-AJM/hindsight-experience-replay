@@ -39,11 +39,14 @@ public:
 	void step() {
 		for (auto it = this->params_.begin(); it != this->params_.end(); ++it) {
 			Tensor *param = *it;
+			cout << "step" << endl;
+			if (param->get_size() < 20) cout << *param << endl;
 			if (param->gradient == NULL) {
 				continue;
 			}
 
 			param->submul_(param->grad(), lr);
+			if (param->get_size() < 20) cout << *param << endl;
 		}
 	}
 };

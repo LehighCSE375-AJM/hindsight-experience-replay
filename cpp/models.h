@@ -23,6 +23,8 @@ private:
 	Tensor out;
 
 public:
+	vector<Tensor *> params;
+
 	explicit Actor(Tensor &max_action) {
 		this->max_action = max_action;
 	};
@@ -33,6 +35,15 @@ public:
 		fc2 = Linear(256, 256, RELU);
 		fc3 = Linear(256, 256, RELU);
 		action_out = Linear(256, action, TANH);
+
+		params.push_back(&(fc1.weights));
+		params.push_back(&(fc1.bias));
+		params.push_back(&(fc2.weights));
+		params.push_back(&(fc2.bias));
+		params.push_back(&(fc3.weights));
+		params.push_back(&(fc3.bias));
+		params.push_back(&(action_out.weights));
+		params.push_back(&(action_out.bias));
 	};
 
 	explicit Actor(const Actor &other) {
@@ -41,6 +52,15 @@ public:
 		fc2 = other.fc2;
 		fc3 = other.fc3;
 		action_out = other.action_out;
+
+		params.push_back(&(fc1.weights));
+		params.push_back(&(fc1.bias));
+		params.push_back(&(fc2.weights));
+		params.push_back(&(fc2.bias));
+		params.push_back(&(fc3.weights));
+		params.push_back(&(fc3.bias));
+		params.push_back(&(action_out.weights));
+		params.push_back(&(action_out.bias));
 	}
 
 	Tensor& forward(Tensor &x) {
@@ -53,7 +73,7 @@ public:
 		return out;
 	}
 
-	vector<Tensor*> parameters() {
+	vector<Tensor *> parameters() {
 		vector<Tensor*> result;
 		result.push_back(&fc1.weights);
 		result.push_back(&fc1.bias);
@@ -68,6 +88,23 @@ public:
 		result.push_back(&action_out.bias);
 
 		return result;
+	}
+
+	void copy_transform_params(Actor* source,
+								function<void(Tensor *, Tensor *)> copy_transform) {
+		vector<Tensor *> source_params = source->parameters();
+		
+		copy_transform(&(fc1.weights), (source_params[0]));
+		copy_transform(&(fc1.bias), (source_params[1]));
+
+		copy_transform(&(fc2.weights), (source_params[2]));
+		copy_transform(&(fc2.bias), (source_params[3]));
+
+		copy_transform(&(fc3.weights), (source_params[4]));
+		copy_transform(&(fc3.bias), (source_params[5]));
+
+		copy_transform(&(action_out.weights), (source_params[6]));
+		copy_transform(&(action_out.bias), (source_params[7]));
 	}
 };
 
@@ -94,13 +131,33 @@ public:
 		this->optim = new GradientDescent(this->parameters(), 0.00001);
 	};
 
+	explicit Critic(int obs, int goal, int action, Tensor& max_action)
+	{
+		this->max_action = max_action;
+		fc1 = Linear(obs + goal + action, 256, RELU);
+		fc2 = Linear(256, 256, RELU);
+		fc3 = Linear(256, 256, RELU);
+		q_out = Linear(256, 1, NONE);
+		this->optim = new GradientDescent(this->parameters(), 0.00001);
+	}
+
+	explicit Critic(const Critic &other)
+	{
+		this->max_action = other.max_action;
+		fc1 = other.fc1;
+		fc2 = other.fc2;
+		fc3 = other.fc3;
+		q_out = other.q_out;
+		this->optim = new GradientDescent(this->parameters(), 0.00001);
+	}
+
 	~Critic() {
 		delete this->optim;
 	}
 
 	Tensor& forward(const Tensor &x, const Tensor &actions) {
 		actions.copy(_adjusted_actions);
-		_adjusted_actions.div_(max_action);
+		// _adjusted_actions.div_(max_action);
 		Tensor::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
 		fc1.forward(_adjusted_in);
 		fc2.forward(fc1.out());
@@ -134,5 +191,27 @@ public:
 		result.push_back(&q_out.bias);
 
 		return result;
+	}
+
+	void copy_transform_params(Critic* source, vector<Tensor *> params,
+								function<void(Tensor *, Tensor *)> copy_transform) {
+		vector<Tensor *> source_params = source->parameters();
+		
+		for (size_t i = 0; i < source_params.size(); i++)
+		{
+			copy_transform(params[i], source_params[i]);
+		}
+
+		// copy_transform(&(fc1.weights), (source_params[0]));
+		// copy_transform(&(fc1.bias), (source_params[1]));
+
+		// copy_transform(&(fc2.weights), (source_params[2]));
+		// copy_transform(&(fc2.bias), (source_params[3]));
+
+		// copy_transform(&(fc3.weights), (source_params[4]));
+		// copy_transform(&(fc3.bias), (source_params[5]));
+
+		// copy_transform(&(action_out.weights), (source_params[6]));
+		// copy_transform(&(action_out.bias), (source_params[7]));
 	}
 };
