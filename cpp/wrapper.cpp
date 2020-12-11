@@ -176,6 +176,11 @@ extern "C"
 		}
 	}
 
+	void critic_backprop(critic_wrapper* c, double actual, double predicted)
+	{
+		c->critic->backprop(actual, Tensor(1, 1, &predicted)); //Tensor(1, 1, &actual)
+	}
+
 	void critic_soft_update(critic_wrapper* target, critic_wrapper* source,
 							double polyak)
 	{

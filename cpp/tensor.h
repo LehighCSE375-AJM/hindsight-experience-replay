@@ -300,12 +300,12 @@ public:
 								1.0, bias.values, n);
 	}
 
-	// Concatonate to Tensor classes. They both MUST be vectors (Tensor with height 1)
+	// Concatonate two Tensor classes. They both MUST be vectors (Tensor with height 1)
 	// Could make sense to extend this is the future so 2d tensor's are supported, however, that
 	// isn't needed right now so I won't bother supporting it. 
 	static void vector_concat_onto(const Tensor &m1, const Tensor &m2, Tensor &out) {
-		assert(m1.height == 1);
-		assert(m2.height == 1);
+		// assert(m1.height == 1);
+		// assert(m2.height == 1);
 		setup_output_tensor(1, m1.width + m2.width, out);
 		cblas_dcopy(m1.width, m1.values, 1, out.values, 1);
 		cblas_dcopy(m2.width, m2.values, 1, &(out.values[m1.width]), 1);
@@ -370,5 +370,11 @@ Tensor operator-(const Tensor& m1, const Tensor& m2) {
 	assert(m1.width == m2.width);
 	return Tensor(m1.height, m1.width, [&](int i) {
 		return m1.values[i] - m2.values[i];
+	});
+}
+
+Tensor operator-(const Tensor& m1, const double& m2) {
+	return Tensor(m1.height, m1.width, [&](int i) {
+		return m1.values[i] - m2;
 	});
 }

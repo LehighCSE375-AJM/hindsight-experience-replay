@@ -58,6 +58,7 @@ class critic(object):
 			goal = env_params['goal']
 			action = env_params['action']
 			action_max = env_params['action_max']
+			print(f'Critic action max: {action_max}')
 			self.max_timesteps = env_params['max_timesteps']
 
 			libc.init_critic.argtypes = [ctypes.c_int, ctypes.c_int,
@@ -96,6 +97,12 @@ class critic(object):
 		libc.get_critic_forward(self.obj, ctypes.byref(out))
 		out = list(out)
 		return torch.tensor(out).reshape([out_dim[0], out_dim[1]])
+	
+	def backprop(self, actual, predicted):
+		actual = ctypes.c_double(float(actual))
+		# print(predicted[0])
+		predicted = ctypes.c_double(float(predicted[0]))
+		libc.critic_backprop(self.obj, actual, predicted)
 	
 	def soft_update(self, other, polyak):
 		# print(polyak)

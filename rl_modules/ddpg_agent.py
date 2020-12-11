@@ -243,7 +243,9 @@ class ddpg_agent:
         self.actor_optim.step()
         # update the critic_network
         ### self.critic_optim.zero_grad()
-        critic_loss.backward()
+        self.critic_network.backprop(real_q_value, target_q_value)
+        # print(f'loss: {critic_loss}')
+        ### critic_loss.backward()
         ### sync_grads(self.critic_network)
         ### self.critic_optim.step()
 

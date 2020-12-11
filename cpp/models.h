@@ -176,6 +176,17 @@ public:
 		optim->step();
 	}
 
+	void backprop(const double actual, const Tensor &predicted) {
+		predicted.copy(_loss_gradient);
+		// _loss_gradient.sub_(actual);
+		_loss_gradient = _loss_gradient - actual;
+		q_out.compute_gradient(_loss_gradient);
+		fc3.compute_gradient(q_out.grad());
+		fc2.compute_gradient(fc3.grad());
+		fc1.compute_gradient(fc2.grad());
+		optim->step();
+	}
+
 	vector<Tensor*> parameters() {
 		vector<Tensor*> result;
 		result.push_back(&fc1.weights);
@@ -201,17 +212,5 @@ public:
 		{
 			copy_transform(params[i], source_params[i]);
 		}
-
-		// copy_transform(&(fc1.weights), (source_params[0]));
-		// copy_transform(&(fc1.bias), (source_params[1]));
-
-		// copy_transform(&(fc2.weights), (source_params[2]));
-		// copy_transform(&(fc2.bias), (source_params[3]));
-
-		// copy_transform(&(fc3.weights), (source_params[4]));
-		// copy_transform(&(fc3.bias), (source_params[5]));
-
-		// copy_transform(&(action_out.weights), (source_params[6]));
-		// copy_transform(&(action_out.bias), (source_params[7]));
 	}
 };
