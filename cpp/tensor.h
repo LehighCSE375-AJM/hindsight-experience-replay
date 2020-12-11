@@ -237,6 +237,14 @@ public:
 		return *this;
 	}
 
+	double mean_() {
+		double tot = 0;
+		for (int i = 0; i < height * width; ++i) {
+			tot += this->values[i];
+		}
+		return tot / (height * width);
+	}
+
 	Tensor& div_(const double& d) {
 		assert(d != 0.);
 		cblas_dscal(height * width, 1/d, values, 1);
