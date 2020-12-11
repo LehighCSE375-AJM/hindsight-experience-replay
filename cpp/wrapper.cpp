@@ -184,15 +184,17 @@ extern "C"
 	void critic_soft_update(critic_wrapper* target, critic_wrapper* source,
 							double polyak)
 	{
+		critic_parameters(target);
 		target->critic->copy_transform_params(source->critic, target->parameters,
 			[&](Tensor* t, Tensor* s)
 			{
-				if (s->get_size() < 100) cout << *s;
-				if (t->get_size() < 100) cout << *t;
+				if (s->get_size() < 100) cout << "s:" << *s;
+				if (t->get_size() < 100) cout << "t:" << *t;
 				Tensor tmp = *s * (1 - polyak) + *t * polyak;
-				if (tmp.get_size() < 100) cout << tmp;
-				t->copy((tmp));
-				if (t->get_size() < 100) cout << *t << endl;
+				if (tmp.get_size() < 100) cout << "tmp:" << tmp;
+				// t->copy((tmp));
+				tmp.copy(*t);
+				if (t->get_size() < 100) cout << "t:" << *t << endl;
 			});
 	}
 }

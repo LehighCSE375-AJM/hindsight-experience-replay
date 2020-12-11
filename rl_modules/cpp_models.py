@@ -107,6 +107,6 @@ class critic(object):
 	def soft_update(self, other, polyak):
 		# print(polyak)
 		polyak = ctypes.c_double(polyak)
-		libc.actor_soft_update(self.obj, other.obj, polyak)
+		libc.critic_soft_update(self.obj, other.obj, polyak)
 
 	

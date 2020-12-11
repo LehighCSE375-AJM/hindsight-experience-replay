@@ -158,6 +158,12 @@ public:
 		setup_output_tensor(height, width, m);
 		cblas_dcopy(height * width, values, 1, m.values, 1);
 	}
+
+	// Copies the values from this tensor onto the passed in tensor. 
+	void copy(Tensor* m) const {
+		setup_output_tensor(height, width, *m);
+		cblas_dcopy(height * width, values, 1, m->values, 1);
+	}
 	
 	Tensor zeros() const {
 		return Tensor(height, width, [&]() {
