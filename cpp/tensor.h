@@ -6,8 +6,11 @@
 #include <cassert>
 #include <utility>
 #include "cblas.h"
+#include <curand_kernel.h>
 #include "cuda_utils.h"
 #include "math.h"
+
+#define THREADS 4
 
 using namespace std;
 
@@ -23,6 +26,19 @@ private:
 			values[i] = initializer(row, column);
 		}
 	};
+
+	// This initializes the d_values ptr properly based on the currently set height. 
+	__device__ void initialize_d_values() {
+		// This is some fancy code to make sure all the threads point to the same matrix values
+		__shared__ double *new_d_ptr;
+		if (threadIdx.x == 0) {
+			printf("Updating output tensor\n");
+			new_d_ptr = new double[height * width];
+			// May want to zero values? idk
+		}
+		__syncthreads();
+		this->d_values = new_d_ptr;
+	}
 	
 public:
 	int height = 0;
@@ -35,8 +51,29 @@ public:
 
 	Tensor() = default;
 
-	Tensor(int height, int width) {
+	// Creates a new device tensor in accordance with pytorch random initialization for weight/bias matrices
+	__device__ Tensor(int height, int width, curandState &rand_state, int in_features) {
+		this->height = height;
+		this->width = width;
+		initialize_d_values();
+		int i = threadIdx.x;
+                // Warp divergence (although I don't think this is all that bad)
+                while (i < height * width) {
+			// curand_uniform generates a uniformly distributed random number betweeen 0 and 1
+			this->d_values[i] = (curand_uniform(&rand_state) - 0.5) * 2 * sqrt(1./in_features);
+                        i += blockDim.x;
+                }
+
+	}
+
+	__host__ __device__ Tensor(int height, int width) {
+#ifdef __CUDA_ARCH__
+		this->height = height;
+		this->width = width;
+		initialize_d_values();
+#else
 		initialize(height, width, [&](int _1, int _2){return 0;});
+#endif
 	}
 
 	Tensor(int height, int width, function<double()> initializer) {
@@ -86,22 +123,22 @@ public:
 		return *this->gradient;
 	}
 
-	Tensor& operator=(const Tensor &m) {
+	__host__ __device__ Tensor& operator=(const Tensor &m) {
 		if (this==&m) return *this; 
-		if (this->height * this->width != m.height * m.width) {
-			delete[] this->values;
-			this->values = new double[m.height * m.width];
-		}
-		// Theres a whole lot of copying values which seems slow. 
-		this->height = m.height;
-		this->width = m.width;
-		cblas_dcopy(height * width, m.values, 1, values, 1);
+		m.copy(*this);
 		return (*this);
 	}
 
-	~Tensor() {
+	__host__ __device__ ~Tensor() {
+#ifdef __CUDA_ARCH__
+		// This might have issues if somebody tries to copy from a kernel after it completed
+		if (threadIdx.x == 0) {
+			delete[] this->d_values;
+		}
+#else
 		delete[] values;
 		delete gradient;
+#endif
 	}
 
 	// Sets up the tensor to output the from a tensor operation onto. 
@@ -112,16 +149,7 @@ public:
 		if (height * width != m.height * m.width) {
 			m.height = height;
 			m.width = width;
-			// This is some fancy code to make sure all the threads point to the same matrix values
-			// I think it works (probably, maybe)
-			__shared__ double *new_d_ptr;
-			if (threadIdx.x == 0) {
-				printf("Updating output tensor\n");
-				new_d_ptr = new double[height * width];
-				// May want to zero values? idk
-			}
-			__syncthreads();
-			m.d_values = new_d_ptr;
+			m.initialize_d_values();
 		}
 #else
 		if (height * width != m.height * m.width) {
@@ -255,17 +283,35 @@ public:
 		return *this;
 	}
 
-	Tensor& mul_(const double& d) {
+	__host__ __device__ Tensor& mul_(const double& d) {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		// Warp divergence?
+		while (i < height * width) {
+			this->d_values[i] *= d;
+			i += blockDim.x;
+		}
+#else
 		cblas_dscal(height * width, d, values, 1);
+#endif
 		return *this;
 	}
 
-	Tensor& mul_(const Tensor& m) {
+	__host__ __device__ Tensor& mul_(const Tensor& m) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		// Warp divergence?
+		while (i < height * width) {
+			this->d_values[i] *= m.d_values[i];
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] *= m.values[i];
 		}
+#endif
 		return *this;
 	}
 
@@ -349,7 +395,36 @@ public:
 
 	// Computes m1*m2 + bias (m1 and m2 are transposed if their respective transpose bools are true)
 	// Bias is overwritten with the result (just how blas works)
-	static void matrix_multiply(const Tensor &m1, bool m1_transpose, const Tensor &m2, bool m2_transpose, Tensor &bias) {
+	__host__ __device__ static void matrix_multiply(const Tensor &m1, bool m1_transpose, const Tensor &m2, bool m2_transpose, Tensor &bias) {
+#ifdef __CUDA_ARCH__
+		// Possible race condition would exist without this __syncthreads()
+		__syncthreads();
+		// Currently I am assuming the m2_transpose is true and m1_transpose is false (obviously a poor assumption!)
+		for (int i = 0; i < m1.height; ++i) {
+			for (int k = 0; k < m2.height; ++k) {
+				int m1_offset = i * m1.width;
+				int m2_offset = k * m2.width;
+				__shared__ double prod_results[THREADS];
+				int t = threadIdx.x;
+				prod_results[t] = 0;
+				// For most of our matrix multiplication half the threads will never enter this while loop, and end up doing no work which is not ideal...
+				while (t < m1.width) {
+					prod_results[threadIdx.x] += m1.d_values[m1_offset + t] * m2.d_values[m2_offset + t];
+                        		t += blockDim.x;
+				}
+				// Reduce the shared array to one value (https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
+				for (unsigned int s = 1; s < blockDim.x; s *= 2) {
+					if (threadIdx.x % (2 * s) == 0) {
+						prod_results[threadIdx.x] += prod_results[threadIdx.x + s];
+					}
+					__syncthreads();
+				}
+				if (threadIdx.x == 0) {
+					bias.d_values[m1_offset + k] += prod_results[0];
+				}
+			}
+		}
+#else
 		int m = m1_transpose ? m1.width : m1.height;
 		int m1_k = m1_transpose ? m1.height : m1.width;
 		int m2_k = m2_transpose ? m2.width : m2.height;
@@ -363,6 +438,7 @@ public:
 								1.0, m1.values, m1_transpose ? m : m1_k,
 								m2.values, m2_transpose ? m1_k : n,
 								1.0, bias.values, n);
+#endif
 	}
 
 	// Concatonate to Tensor classes. They both MUST be vectors (Tensor with height 1)
@@ -375,8 +451,16 @@ public:
 		cblas_dcopy(m1.width, m1.values, 1, out.values, 1);
 		cblas_dcopy(m2.width, m2.values, 1, &(out.values[m1.width]), 1);
 	}
+	
+	// Cuda device code doesn't support the string data type interestingly enough
+	__device__ void print(const char * header) const {
+		if (threadIdx.x == 0) {
+			printf("%s:\n", header);
+			this->print();
+		}
+	}
 
-	__device__ void print() {
+	__device__ void print() const {
 		if (threadIdx.x == 0) {
 			for (int i = 0; i < height * width; ++i) {
 				printf(" %g ", d_values[i]);

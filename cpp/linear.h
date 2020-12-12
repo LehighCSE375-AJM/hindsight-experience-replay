@@ -1,6 +1,8 @@
 #pragma once
 
+#include "tensor.h"
 #include <random>
+#include <curand_kernel.h>
 
 enum ActivationFunction {
     RELU, TANH, NONE
@@ -65,6 +67,17 @@ public:
         this->fun = fun;
     }
 
+    __device__ Linear(int in_features, int out_features, ActivationFunction fun, curandState &rand_state) {
+	this->_in_features = in_features;
+	this->_out_features = out_features;
+
+	weights = Tensor(out_features, in_features, rand_state, in_features);
+	bias = Tensor(1, out_features, rand_state, in_features);
+
+	// FUN!
+	this->fun = fun;
+    }
+
     Tensor& grad() {
         return this->out_error_gradient;
     }
@@ -73,20 +86,27 @@ public:
         return this->_out;
     }
 
-    void multiply(const Tensor &x, Tensor &out) const {
+    __host__ __device__ void multiply(const Tensor &x, Tensor &out) const {
         assert(x.width == _in_features);
         Tensor::setup_output_tensor(x.height, _out_features, out);
-        for (int r = 0; r < out.height; ++r) {
+#ifdef __CUDA_ARCH__
+	int t = threadIdx.x;
+	while (t < out.height * out.width) {
+		out.d_values[t] = bias.d_values[t % out.width];
+		t += blockDim.x;
+	}
+#else
+	for (int r = 0; r < out.height; ++r) {
             for (int c = 0; c < out.width; ++c) {
                 out.values[r * out.width + c] = bias.values[c];
             }
         }
+#endif
         Tensor::matrix_multiply(x, false, weights, true, out);
     }
 
-    Tensor& forward(const Tensor &x) {
+    __host__ __device__ Tensor& forward(const Tensor &x) {
         this->in = x;
-
         this->multiply(x, this->preactiv_out);
         switch (this->fun) {
             case RELU:
@@ -99,8 +119,6 @@ public:
                 // What a boring activation function
                 preactiv_out.copy(_out);
                 break;
-            default:
-                throw runtime_error("Unrecognized activation function");
         }
         return _out;
     }
