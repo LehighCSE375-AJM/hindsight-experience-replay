@@ -10,13 +10,20 @@ __global__ void matrixAddOne(unsigned long seed) {
 	curandState rand_state;
         curand_init(seed, threadIdx.x, 0, &rand_state);
 	Linear lin(4, 2, RELU, rand_state);
-	Tensor in_test(2, 4, rand_state, 1);
-	in_test.print("in_test");
-	Tensor t = lin.forward(in_test);
-	in_test.print("this matrix");
-	lin.weights.print("times weights");
-	lin.bias.print("plus bias");
-	t.print("equals this");
+	Tensor in = Tensor(1, 4);
+	in.values[0] = 8;
+	in.values[1] = 2;
+	in.values[2] = 9;
+	in.print("In Matrix times");
+	Tensor out = lin.forward(in);
+	out.print("Out/Error Matrix");
+	
+	Tensor error;
+	out.transpose(error);
+	// We'll just use the output as the error for testing
+	Tensor grad = lin.compute_gradient(error);
+	grad.print("Gradient");
+
 	// Something that we have to think about is doing a __syncthreads() before we do not 
 	// elementwise operations such as matrix multiplication (not needed for element-wise 
 	// operations since they always act on the same value as the last element-wise operation
@@ -39,7 +46,6 @@ __global__ void matrixAddOne(unsigned long seed) {
 	// just make sense to do everything in one call, idk)
 
 	// Very helpful that we can print from a kernel
-	printf("done\n");
 }
 
 int main() {

@@ -10,7 +10,7 @@
 #include "cuda_utils.h"
 #include "math.h"
 
-#define THREADS 4
+#define THREADS 5
 
 using namespace std;
 
@@ -38,6 +38,7 @@ private:
 		}
 		__syncthreads();
 		this->values = new_d_ptr;
+		__syncthreads();
 	}
 	
 public:
@@ -88,11 +89,26 @@ public:
 		initialize(height, width, std::move(initializer));
 	}
 
-	Tensor& grad() {
+	__host__ __device__ Tensor& grad() {
 		if (this->gradient == NULL) {
+#ifdef __CUDA_ARCH__
+			__shared__ Tensor *new_d_ptr;
+			if (threadIdx.x == 0) {
+				printf("Updating output tensor\n");
+				new_d_ptr = new Tensor(height, width);
+				// May want to zero values? idk
+			}
+			__syncthreads();
+			this->gradient = new_d_ptr;
+			// I'm not 100% sure this is required, it depends on how shared memory functions
+			// If the new_d_ptr is overwritten when grad() is called again then this is required
+			// (not sure if shared memory is more akin to local variables though)
+			__syncthreads();
+#else
 			this->gradient = new Tensor(height, width, [&]() {
 				return 0.;
 			});
+#endif
 		}
 
 		return *this->gradient;
@@ -161,10 +177,18 @@ public:
 	}
 
 	// Computes the gradient of the relu function for each element in place
-	Tensor& relu_gradient() {
+	__host__ __device__ Tensor& relu_gradient() {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			values[i] = values[i] > 0 ? 1. : 0.;
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < height * width; ++i) {
 			values[i] = values[i] > 0 ? 1. : 0.;
 		}
+#endif
 		return *this;
 	}
 
@@ -189,11 +213,19 @@ public:
 	}
 
 	// Computes the gradient of the tanh function for each element in place. 
-	Tensor& tanh_gradient() {
+	__host__ __device__ Tensor& tanh_gradient() {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			values[i] = 1 - pow(std::tanh(values[i]), 2);
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < height * width; ++i) {
 			// This is another way to write sech^2. Not sure why cmath doesn't have a sech function. 
 			values[i] = 1 - pow(std::tanh(values[i]), 2);
 		}
+#endif
 		return *this;
 	}
 
@@ -219,16 +251,35 @@ public:
 	}
 
 	// This is the gradient when no activation function is used. 
-	Tensor& ones() {
+	__host__ __device__ Tensor& ones() {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			values[i] = 1;
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < height * width; ++i) {
 			values[i] = 1;
 		}
+#endif
 		return *this;
 	}
 
 	// Transposes this tensor onto the passed in tensor. 
-	void transpose(Tensor &m) const {
+	__host__ __device__ void transpose(Tensor &m) const {
 		setup_output_tensor(width, height, m);
+#ifdef __CUDA_ARCH__
+		__syncthreads();
+		int i = threadIdx.x;
+		while (i < height * width) {
+			int index2 = (i % width) * height + i / width;
+			m.values[index2] = this->values[i];
+			i += blockDim.x;
+		}
+		// There are not consistent elementwise accesses of m, so we have to syncthreads
+		__syncthreads();
+#else
 		for (int i = 0; i < height; ++i) {
 			for (int j = 0; j < width; ++j) {
 				int index1 = i * width + j;
@@ -236,6 +287,7 @@ public:
 				m.values[index2] = values[index1];
 			}
 		}
+#endif
 	}
 
 	Tensor& add_(double d) {
@@ -399,7 +451,6 @@ public:
                         		t += blockDim.x;
 				}
 				// Reduce the shared array to one value (https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
-				printf("Thread %d sum value: %f\n", threadIdx.x, prod_results[threadIdx.x]);
 				for (unsigned int s = 1; s < blockDim.x; s *= 2) {
 					if (threadIdx.x % (2 * s) == 0) {
 						prod_results[threadIdx.x] += prod_results[threadIdx.x + s];
@@ -412,6 +463,7 @@ public:
 				}
 			}
 		}
+		__syncthreads();
 #else
 		cblas_dgemm(CblasRowMajor, m1_transpose ? CblasTrans : CblasNoTrans, m2_transpose ? CblasTrans : CblasNoTrans,
 								m, n, m1_k,

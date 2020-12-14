@@ -124,7 +124,7 @@ public:
     }
 
     // error_gradient is gradient of error with respect to the output of this function. (This function returns the previous layer's error gradient)
-    Tensor& compute_gradient(const Tensor &error_gradient) {
+    __host__ __device__ Tensor& compute_gradient(const Tensor &error_gradient) {
         // This is one way to calculate the gradients. I don't use it since I'm pretty sure its wrong (doesn't do the backpropagation with respect to the weight tensor neurons properly)
         // preactivation_error_gradient = error_gradient x activation_gradient (x indicates element wise multiplication)
         // preactivation_error_gradient^T * input = weight gradient (* means actual matrix multiplication)
@@ -155,7 +155,6 @@ public:
 
         out_error_gradient.mul_(0);
         Tensor::matrix_multiply(this->weights, true, _activation_gradient_transpose, false, out_error_gradient);
-        // This updates the model. Will have to be updated to use Adam optimizer.
         return out_error_gradient;
     }
 };
