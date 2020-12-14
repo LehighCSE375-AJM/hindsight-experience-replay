@@ -92,7 +92,7 @@ public:
 #ifdef __CUDA_ARCH__
 	int t = threadIdx.x;
 	while (t < out.height * out.width) {
-		out.d_values[t] = bias.d_values[t % out.width];
+		out.values[t] = bias.values[t % out.width];
 		t += blockDim.x;
 	}
 #else

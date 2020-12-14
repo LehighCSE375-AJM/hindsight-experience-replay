@@ -6,10 +6,7 @@
 
 using namespace std;
 
-__global__ void matrixAddOne(Tensor m, unsigned long seed) {
-	Tensor out;
-	// m.tanh(out); and m.copy(out); also work
-	m.relu(out);
+__global__ void matrixAddOne(unsigned long seed) {
 	curandState rand_state;
         curand_init(seed, threadIdx.x, 0, &rand_state);
 	Linear lin(4, 2, RELU, rand_state);
@@ -42,17 +39,11 @@ __global__ void matrixAddOne(Tensor m, unsigned long seed) {
 	// just make sense to do everything in one call, idk)
 
 	// Very helpful that we can print from a kernel
-	out.print();
-	m.mul_(out);
-	m.print();
-	printf("Rand: %f\n", curand_uniform(&rand_state));
+	printf("done\n");
 }
 
 int main() {
-	Tensor t(10, 10, [](int i) {return i - 20;});
-	cout << t << endl;
-	t.cudafy();
-	matrixAddOne<<<1, THREADS>>>(t, 1234);
+	matrixAddOne<<<1, THREADS>>>(1234);
 	gpuErrchk(cudaDeviceSynchronize());
 	// This uncudafy doesn't work since the cuda memory address was updated by the kernel
 	// (pass-by-value so not updated on the host. Can't be pass-by-reference since then the 

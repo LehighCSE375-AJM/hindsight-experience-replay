@@ -37,7 +37,7 @@ private:
 			// May want to zero values? idk
 		}
 		__syncthreads();
-		this->d_values = new_d_ptr;
+		this->values = new_d_ptr;
 	}
 	
 public:
@@ -45,9 +45,6 @@ public:
 	int width = 0;
 	double* values = NULL;
 	Tensor* gradient = NULL;
-
-	double* d_values = NULL;
-	Tensor* d_gradient = NULL;
 
 	Tensor() = default;
 
@@ -60,7 +57,7 @@ public:
                 // Warp divergence (although I don't think this is all that bad)
                 while (i < height * width) {
 			// curand_uniform generates a uniformly distributed random number betweeen 0 and 1
-			this->d_values[i] = (curand_uniform(&rand_state) - 0.5) * 2 * sqrt(1./in_features);
+			this->values[i] = (curand_uniform(&rand_state) - 0.5) * 2 * sqrt(1./in_features);
                         i += blockDim.x;
                 }
 
@@ -91,28 +88,6 @@ public:
 		initialize(height, width, std::move(initializer));
 	}
 
-	// Makes this tensor a cuda tensor (can only be cuda or cpu, but not both at the same time)
-	void cudafy() {
-		// TODO also have to copy grad
-		gpuErrchk(cudaMalloc((void **) &d_values, sizeof(double) * height * width));
-		gpuErrchk(cudaMemcpy(d_values, values, sizeof(double) * height * width, cudaMemcpyHostToDevice));
-		delete[] values;
-		values = nullptr;
-	}
-
-	// Height and width will never be changed (since those are copied when passed to the 
-	// kernel) so if they are modified by the kernel that will likely break this. Probably 
-	// need to make a d_height, d_width but I'm not certain (uncudafy may never need to be 
-	// called when we do an actual persistent kernel which makes the separate d_height, 
-	// d_width just unneccesary overhead) Makes it no longer a cuda tensor (always either 
-	// cuda, or cpu tensor but not both)
-	void uncudafy() {
-		values = new double[height * width];
-		gpuErrchk(cudaMemcpy(values, d_values, sizeof(double) * height * width, cudaMemcpyDeviceToHost));
-		cudaFree((void **) &d_values);
-		d_values = nullptr;
-	}
-
 	Tensor& grad() {
 		if (this->gradient == NULL) {
 			this->gradient = new Tensor(height, width, [&]() {
@@ -131,9 +106,10 @@ public:
 
 	__host__ __device__ ~Tensor() {
 #ifdef __CUDA_ARCH__
-		// This might have issues if somebody tries to copy from a kernel after it completed
 		if (threadIdx.x == 0) {
-			delete[] this->d_values;
+			// Might be good at some point to do this (although it might not matter since a tensor should only be destructed when the kernel exits)
+			// printf("deleting %p\n", this->values);
+			// delete[] this->values;
 		}
 #else
 		delete[] values;
@@ -172,9 +148,9 @@ public:
 		int i = threadIdx.x;
 		// Warp divergence (although I don't think this is all that bad)
 		while (i < height * width) {
-			double in_val = d_values[i];
+			double in_val = values[i];
 			// Not sure how this type of if statement works with cuda warp divergence. 
-			m.d_values[i] = in_val < 0 ? 0 : in_val;
+			m.values[i] = in_val < 0 ? 0 : in_val;
 			i += blockDim.x;
 		}
 #else
@@ -200,9 +176,9 @@ public:
 		int i = threadIdx.x;
 		// Possible warp divergence
 		while (i < height * width) {
-			double in_val = d_values[i];
+			double in_val = values[i];
 			// There may be an inaccurate fast version of tanh which we may want to look into
-			m.d_values[i] = std::tanh(in_val);
+			m.values[i] = std::tanh(in_val);
 			i += blockDim.x;
 		}
 #else
@@ -228,7 +204,7 @@ public:
 		int i = threadIdx.x;
 		// Warp divergence?
 		while (i < height * width) {
-			m.d_values[i] = this->d_values[i];
+			m.values[i] = this->values[i];
 			i += blockDim.x;
 		}
 #else
@@ -288,7 +264,7 @@ public:
 		int i = threadIdx.x;
 		// Warp divergence?
 		while (i < height * width) {
-			this->d_values[i] *= d;
+			this->values[i] *= d;
 			i += blockDim.x;
 		}
 #else
@@ -304,7 +280,7 @@ public:
 		int i = threadIdx.x;
 		// Warp divergence?
 		while (i < height * width) {
-			this->d_values[i] *= m.d_values[i];
+			this->values[i] *= m.values[i];
 			i += blockDim.x;
 		}
 #else
@@ -409,7 +385,7 @@ public:
 				prod_results[t] = 0;
 				// For most of our matrix multiplication half the threads will never enter this while loop, and end up doing no work which is not ideal...
 				while (t < m1.width) {
-					prod_results[threadIdx.x] += m1.d_values[m1_offset + t] * m2.d_values[m2_offset + t];
+					prod_results[threadIdx.x] += m1.values[m1_offset + t] * m2.values[m2_offset + t];
                         		t += blockDim.x;
 				}
 				// Reduce the shared array to one value (https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
@@ -421,7 +397,7 @@ public:
 				}
 				if (threadIdx.x == 0) {
 					int offset = i * m2.height;
-					bias.d_values[offset + k] += prod_results[0];
+					bias.values[offset + k] += prod_results[0];
 				}
 			}
 		}
@@ -464,7 +440,7 @@ public:
 	__device__ void print() const {
 		if (threadIdx.x == 0) {
 			for (int i = 0; i < height * width; ++i) {
-				printf(" %g ", d_values[i]);
+				printf(" %g ", values[i]);
 				if (i % width == width - 1) {
 					printf("\n");
 				}
