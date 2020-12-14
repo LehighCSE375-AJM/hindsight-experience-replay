@@ -372,23 +372,34 @@ public:
 	// Computes m1*m2 + bias (m1 and m2 are transposed if their respective transpose bools are true)
 	// Bias is overwritten with the result (just how blas works)
 	__host__ __device__ static void matrix_multiply(const Tensor &m1, bool m1_transpose, const Tensor &m2, bool m2_transpose, Tensor &bias) {
+		int m = m1_transpose ? m1.width : m1.height;
+		int m1_k = m1_transpose ? m1.height : m1.width;
+		int m2_k = m2_transpose ? m2.width : m2.height;
+		int n = m2_transpose ? m2.height : m2.width;
+		assert(m1_k == m2_k);
+                setup_output_tensor(m, n, bias);
 #ifdef __CUDA_ARCH__
+		// These two multiples cause VERY bad memory access coalescense. (90% chance I spelt that wrong)
+		// Its fine when the multiples are one, but otherwise it will significantly slow down performance!
+		int m1_offset_multiple = m1_transpose ? m1.width : 1;
+		int m2_offset_multiple = m2_transpose ? 1 : m2.width;
 		// Possible race condition would exist without this __syncthreads()
 		__syncthreads();
 		// Currently I am assuming the m2_transpose is true and m1_transpose is false (obviously a poor assumption!)
-		for (int i = 0; i < m1.height; ++i) {
-			for (int k = 0; k < m2.height; ++k) {
-				int m1_offset = i * m1.width;
-				int m2_offset = k * m2.width;
+		for (int i = 0; i < m; ++i) {
+			for (int k = 0; k < n; ++k) {
+				int m1_offset = i * (m1_transpose ? 1 : m1_k);
+				int m2_offset = k * (m2_transpose ? m1_k : 1);
 				__shared__ double prod_results[THREADS];
 				int t = threadIdx.x;
 				prod_results[t] = 0;
 				// For most of our matrix multiplication half the threads will never enter this while loop, and end up doing no work which is not ideal...
-				while (t < m1.width) {
-					prod_results[threadIdx.x] += m1.values[m1_offset + t] * m2.values[m2_offset + t];
+				while (t < m1_k) {
+					prod_results[threadIdx.x] += m1.values[m1_offset + t * m1_offset_multiple] * m2.values[m2_offset + t * m2_offset_multiple];
                         		t += blockDim.x;
 				}
 				// Reduce the shared array to one value (https://developer.download.nvidia.com/assets/cuda/files/reduction.pdf)
+				printf("Thread %d sum value: %f\n", threadIdx.x, prod_results[threadIdx.x]);
 				for (unsigned int s = 1; s < blockDim.x; s *= 2) {
 					if (threadIdx.x % (2 * s) == 0) {
 						prod_results[threadIdx.x] += prod_results[threadIdx.x + s];
@@ -396,20 +407,12 @@ public:
 					__syncthreads();
 				}
 				if (threadIdx.x == 0) {
-					int offset = i * m2.height;
+					int offset = i * n;
 					bias.values[offset + k] += prod_results[0];
 				}
 			}
 		}
 #else
-		int m = m1_transpose ? m1.width : m1.height;
-		int m1_k = m1_transpose ? m1.height : m1.width;
-		int m2_k = m2_transpose ? m2.width : m2.height;
-		int n = m2_transpose ? m2.height : m2.width;
-		assert(m1_k == m2_k);
-		setup_output_tensor(m, n, bias);
-		assert(m == bias.height);
-		assert(n == bias.width);
 		cblas_dgemm(CblasRowMajor, m1_transpose ? CblasTrans : CblasNoTrans, m2_transpose ? CblasTrans : CblasNoTrans,
 								m, n, m1_k,
 								1.0, m1.values, m1_transpose ? m : m1_k,
