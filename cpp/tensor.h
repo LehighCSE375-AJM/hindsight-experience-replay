@@ -420,7 +420,8 @@ public:
 					__syncthreads();
 				}
 				if (threadIdx.x == 0) {
-					bias.d_values[m1_offset + k] += prod_results[0];
+					int offset = i * m2.height;
+					bias.d_values[offset + k] += prod_results[0];
 				}
 			}
 		}
