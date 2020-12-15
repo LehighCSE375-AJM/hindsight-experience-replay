@@ -93,18 +93,19 @@ public:
 	__host__ __device__ Tensor& grad() {
 		if (this->gradient == NULL) {
 #ifdef __CUDA_ARCH__
-			__syncthreads();
-			__shared__ Tensor *new_d_ptr;
-			if (threadIdx.x == 0) {
-				new_d_ptr = new Tensor(height, width);
-				// May want to zero values? idk
-			}
-			__syncthreads();
-			this->gradient = new_d_ptr;
+			//__syncthreads();
+			//__shared__ Tensor *new_t_ptr;
+			//if (threadIdx.x == 0) {
+			//	new_t_ptr = NULL;
+			//	new_t_ptr = new Tensor(height, width);
+			//	// May want to zero values? idk
+			// }
+			// __syncthreads();
+			this->gradient = new Tensor(height, width);
 			// I'm not 100% sure this is required, it depends on how shared memory functions
 			// If the new_d_ptr is overwritten when grad() is called again then this is required
 			// (not sure if shared memory is more akin to local variables though)
-			__syncthreads();
+			//__syncthreads();
 #else
 			this->gradient = new Tensor(height, width, [&]() {
 				return 0.;
