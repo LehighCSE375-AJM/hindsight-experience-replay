@@ -7,7 +7,7 @@
 
 using namespace std;
 
-__global__ void matrixAddOne(unsigned long seed) {
+__global__ void cudaLearn(unsigned long seed) {
 	curandState rand_state;
         curand_init(seed, threadIdx.x, 0, &rand_state);
 	Tensor max_action = Tensor(1, 1);
@@ -64,7 +64,7 @@ __global__ void matrixAddOne(unsigned long seed) {
 int main() {
 	// 256 megabyte heap size (probably overkill). Otherwise we run out and the new operater just return null
 	cudaDeviceSetLimit(cudaLimitMallocHeapSize, 256 * 1024 * 1024);
-	matrixAddOne<<<1, THREADS>>>(1234);
+	cudaLearn<<<1, THREADS>>>(1234);
 	gpuErrchk(cudaDeviceSynchronize());
 	// This uncudafy doesn't work since the cuda memory address was updated by the kernel
 	// (pass-by-value so not updated on the host. Can't be pass-by-reference since then the 
