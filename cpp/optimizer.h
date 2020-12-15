@@ -2,8 +2,8 @@
 
 class Optimizer {
 	public:
-		virtual void step() = 0;
+		__host__ __device__ virtual void step() = 0;
 
-		virtual ~Optimizer() {
+		__host__ __device__ virtual ~Optimizer() {
 		};
 };

@@ -1,4 +1,5 @@
 #include <iostream>
+#include "models.h"
 #include "tensor.h"
 #include "cuda_utils.h"
 #include <curand_kernel.h>
@@ -9,21 +10,33 @@ using namespace std;
 __global__ void matrixAddOne(unsigned long seed) {
 	curandState rand_state;
         curand_init(seed, threadIdx.x, 0, &rand_state);
-	Linear lin(4, 2, RELU, rand_state);
-	Tensor in = Tensor(1, 4);
-	in.values[0] = 8;
-	in.values[1] = 2;
-	in.values[2] = 9;
-	in.print("In Matrix times");
-	Tensor out = lin.forward(in);
-	out.print("Out/Error Matrix");
-	
-	Tensor error;
-	out.transpose(error);
-	// We'll just use the output as the error for testing
-	Tensor grad = lin.compute_gradient(error);
-	grad.print("Gradient");
+	Tensor max_action = Tensor(1, 1);
+	max_action.values[0] = 1;
 
+	Critic c(1, 1, 1, max_action, rand_state);
+	Tensor in = Tensor(1, 2);
+	Tensor actions = Tensor(1, 1);
+	Tensor expected = Tensor(1, 1);
+	Tensor out;
+	for (int i = 1; i < 100; ++i) {
+		if (threadIdx.x == 0) {
+			int val1 = curand(&rand_state) % 50;
+			int val2 = curand(&rand_state) % 50;
+			int val3 = curand(&rand_state) % 50;
+			in.values[0] = val1;
+			in.values[1] = val2;
+			actions.values[0] = val3;
+			expected.values[0] = 2 * (val1 + val2 + val3);
+		}
+		__syncthreads();
+		out = c.forward(in, actions);
+		if (threadIdx.x == 0) {
+			if (i % 10 == 0) {
+				printf("2 * (%g + %g + %g) = %g =? %g\n", in.values[0], in.values[1], actions.values[0], expected.values[0], out.values[0]);
+			}
+		}
+		c.backprop(expected, out);
+	}
 	// Something that we have to think about is doing a __syncthreads() before we do not 
 	// elementwise operations such as matrix multiplication (not needed for element-wise 
 	// operations since they always act on the same value as the last element-wise operation
@@ -49,6 +62,8 @@ __global__ void matrixAddOne(unsigned long seed) {
 }
 
 int main() {
+	// 256 megabyte heap size (probably overkill). Otherwise we run out and the new operater just return null
+	cudaDeviceSetLimit(cudaLimitMallocHeapSize, 256 * 1024 * 1024);
 	matrixAddOne<<<1, THREADS>>>(1234);
 	gpuErrchk(cudaDeviceSynchronize());
 	// This uncudafy doesn't work since the cuda memory address was updated by the kernel

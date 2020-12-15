@@ -10,7 +10,7 @@
 #include "cuda_utils.h"
 #include "math.h"
 
-#define THREADS 5
+#define THREADS 32
 
 using namespace std;
 
@@ -19,6 +19,7 @@ private:
 	void initialize(int height, int width, function<double(int, int)> initializer) {
 		this->height = height;
 		this->width = width;
+		cout << "Updated output tensor" << endl;
 		this->values = new double[height * width];
 		for (int i = 0; i < height * width; ++i) {
 			int row = i / width;
@@ -32,13 +33,13 @@ private:
 		// This is some fancy code to make sure all the threads point to the same matrix values
 		__shared__ double *new_d_ptr;
 		if (threadIdx.x == 0) {
-			printf("Updating output tensor\n");
+			printf("Updated output tensor\n");
 			new_d_ptr = new double[height * width];
 			// May want to zero values? idk
 		}
 		__syncthreads();
 		this->values = new_d_ptr;
-		__syncthreads();
+		// __syncthreads();
 	}
 	
 public:
@@ -92,9 +93,9 @@ public:
 	__host__ __device__ Tensor& grad() {
 		if (this->gradient == NULL) {
 #ifdef __CUDA_ARCH__
+			__syncthreads();
 			__shared__ Tensor *new_d_ptr;
 			if (threadIdx.x == 0) {
-				printf("Updating output tensor\n");
 				new_d_ptr = new Tensor(height, width);
 				// May want to zero values? idk
 			}
@@ -110,7 +111,6 @@ public:
 			});
 #endif
 		}
-
 		return *this->gradient;
 	}
 
@@ -290,10 +290,18 @@ public:
 #endif
 	}
 
-	Tensor& add_(double d) {
+	__host__ __device__ Tensor& add_(double d) {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] += d;
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] += d;
 		}
+#endif
 		return *this;
 	}
 
@@ -304,10 +312,18 @@ public:
 		return *this;
 	}
 
-	Tensor& sub_(const Tensor& m) {
+	__host__ __device__ Tensor& sub_(const Tensor& m) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] -= m.values[i];
+			i += blockDim.x;
+		}
+#else
 		cblas_daxpy(height * width, -1, m.values, 1, values, 1);
+#endif
 		return *this;
 	}
 
@@ -343,57 +359,107 @@ public:
 		return *this;
 	}
 
-	Tensor& div_(const Tensor& m) {
+	__host__ __device__ Tensor& div_(const Tensor& m) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] /= m.values[i];
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] /= m.values[i];
 		}
+#endif
 		return *this;
 	}
 
-	Tensor& div_(const double& d) {
+	__host__ __device__ Tensor& div_(const double& d) {
 		assert(d != 0.);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] /= d;
+			i += blockDim.x;
+		}
+#else
 		cblas_dscal(height * width, 1/d, values, 1);
+#endif
 		return *this;
 	}
 
-	Tensor& sqrt_() {
+	__host__ __device__ Tensor& sqrt_() {
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] *= std::sqrt(this->values[i]);
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
 			this->values[i] = std::sqrt(this->values[i]);
 		}
+#endif
 		return *this;
 	}
 
 	// this = this + m * p
-	Tensor& addmul_(const Tensor& m, const double& p) {
+	__host__ __device__ Tensor& addmul_(const Tensor& m, const double& p) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] += m.values[i] * p;
+			i += blockDim.x;
+		}
+#else
 		cblas_daxpby(height * width, p, m.values, 1, 1, values, 1);
+#endif
 		return *this;
 	}
 
 	// this = this - m * p
-	Tensor& submul_(const Tensor& m, const double& p) {
+	__host__ __device__ Tensor& submul_(const Tensor& m, const double& p) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			this->values[i] -= m.values[i] * p;
+			i += blockDim.x;
+		}
+#else
 		cblas_daxpby(height * width, -p, m.values, 1, 1, values, 1);
+#endif
 		return *this;
 	}
 
 	/**
 	 * This may need to be put in layer.h
 	 */
-	Tensor& addcdiv_(const Tensor& m1, const Tensor& m2, const double& val) {
+	__host__ __device__ Tensor& addcdiv_(const Tensor& m1, const Tensor& m2, const double& val) {
 		assert(this->height == m1.height);
 		assert(m1.height == m2.height);
 		assert(this->width == m1.width);
 		assert(m1.width == m2.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < height * width) {
+			if (m2.values[i] != 0) {
+				this->values[i] += val * m1.values[i] / m2.values[i];
+			}
+			i += blockDim.x;
+		}
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
 			if (m2.values[i] != 0) {
 				this->values[i] += val * m1.values[i] / m2.values[i];
 			}
 		}
+#endif
 		return *this;
 	}
 
@@ -412,12 +478,20 @@ public:
 	}
 
 	// this = this + m^2 * val
-	Tensor& addsquaremul_(const Tensor& m, const double& val) {
+	__host__ __device__ Tensor& addsquaremul_(const Tensor& m, const double& val) {
 		assert(this->height == m.height);
 		assert(this->width == m.width);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+                while (i < height * width) {
+                        this->values[i] += std::pow(m.values[i], 2) * val;
+                        i += blockDim.x;
+                }
+#else
 		for (int i = 0; i < this->height * this->width; i++) {
-				this->values[i] += val * m.values[i] * m.values[i];
+			this->values[i] += val * m.values[i] * m.values[i];
 		}
+#endif
 		return *this;
 	}
 
@@ -476,12 +550,20 @@ public:
 	// Concatonate to Tensor classes. They both MUST be vectors (Tensor with height 1)
 	// Could make sense to extend this is the future so 2d tensor's are supported, however, that
 	// isn't needed right now so I won't bother supporting it. 
-	static void vector_concat_onto(const Tensor &m1, const Tensor &m2, Tensor &out) {
+	__host__ __device__ static void vector_concat_onto(const Tensor &m1, const Tensor &m2, Tensor &out) {
 		assert(m1.height == 1);
 		assert(m2.height == 1);
 		setup_output_tensor(1, m1.width + m2.width, out);
+#ifdef __CUDA_ARCH__
+		int i = threadIdx.x;
+		while (i < m1.width + m2.width) {
+			out.values[i] = i >= m1.width ? m2.values[i - m1.width] : m1.values[i];
+			i += blockDim.x;
+		}
+#else
 		cblas_dcopy(m1.width, m1.values, 1, out.values, 1);
 		cblas_dcopy(m2.width, m2.values, 1, &(out.values[m1.width]), 1);
+#endif
 	}
 	
 	// Cuda device code doesn't support the string data type interestingly enough

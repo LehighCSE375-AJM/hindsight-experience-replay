@@ -51,6 +51,8 @@ private:
 public:
     Tensor weights;
     Tensor bias;
+
+    Linear() = default;
     
     Linear(int in_features, int out_features, ActivationFunction fun) {
         random_device rd;
@@ -78,11 +80,11 @@ public:
 	this->fun = fun;
     }
 
-    Tensor& grad() {
+    __host__ __device__ Tensor& grad() {
         return this->out_error_gradient;
     }
 
-    Tensor& out() {
+    __host__ __device__ Tensor& out() {
         return this->_out;
     }
 
@@ -148,9 +150,8 @@ public:
         }
         preactiv_out.transpose(_activation_gradient_transpose);
         _activation_gradient_transpose.mul_(error_gradient);
-        
         _activation_gradient_transpose.transpose(this->bias.grad());
-        this->weights.grad().mul_(0);
+	this->weights.grad().mul_(0);
         Tensor::matrix_multiply(_activation_gradient_transpose, false, in, false, this->weights.grad());
 
         out_error_gradient.mul_(0);

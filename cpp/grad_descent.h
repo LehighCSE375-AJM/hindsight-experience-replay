@@ -10,8 +10,9 @@
  */
 class GradientDescent: public Optimizer {
 private:
-	vector<Tensor*> params_;
+	Tensor** params_;
 	double lr = 1E-3L;
+	int param_len_;
 
 public:
 	/**
@@ -21,24 +22,25 @@ public:
 	 * @param params is an iterator of tensors in the order [weight, bias, weight ... ]
 	 * @param lr is the learning rate, default 0.001
 	 */
-	GradientDescent(vector<Tensor*> params, double lr = 1E-3L) {
+	__host__ __device__ GradientDescent(Tensor** params, int param_len, double lr = 1E-3L) {
 		this->params_ = params;
 		this->lr = lr;
+		this->param_len_ = param_len;
 	}
 	
 	/**
 	 * Destructor for gradient descent optimizer
 	 */
-	~GradientDescent() {
+	__host__ __device__ ~GradientDescent() {
 		// Nothing to destruct?
 	}
 
 	/**
 	 * Take one step by subtracting the gradient * the learning rate from params
 	 */
-	void step() {
-		for (auto it = this->params_.begin(); it != this->params_.end(); ++it) {
-			Tensor *param = *it;
+	__host__ __device__ void step() {
+		for (int i = 0; i < param_len_; ++i) {
+			Tensor *param = this->params_[i];
 			if (param->gradient == NULL) {
 				continue;
 			}

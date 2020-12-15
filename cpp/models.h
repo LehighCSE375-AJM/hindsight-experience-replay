@@ -57,12 +57,13 @@ public:
 
 class Critic {
 private:
-	Linear fc1 = Linear(OBSERVATION_DIM + GOAL_DIM + ACTION_DIM, NEURONS, RELU);
-	Linear fc2 = Linear(NEURONS, NEURONS, RELU);
-	Linear fc3 = Linear(NEURONS, NEURONS, RELU);
-	Linear q_out = Linear(NEURONS, 1, NONE);
+	Linear fc1;
+	Linear fc2;
+	Linear fc3;
+	Linear q_out;
 	Tensor max_action;
-	Optimizer* optim;
+	// Only an Adam optimizer since we don't have to use virtual functions this way (which I believe are fairly slow, but not certain)
+	GradientDescent* optim;
 
 	// Miscelanious intermediate matricies. 
 	Tensor _adjusted_actions;
@@ -71,17 +72,49 @@ private:
 
 public:
 
-	explicit Critic(Tensor &max_action) {
+	__device__ Critic(int obs, int goal, int action, Tensor &max_action, curandState &rand_state) {
 		this->max_action = max_action;
-		// this->optim = new Adam(this->parameters(), 0.00001);
-		this->optim = new GradientDescent(this->parameters(), 0.00001);
+		
+		fc1 = Linear(obs + goal + action, 256, RELU, rand_state);
+		fc2 = Linear(256, 256, RELU, rand_state);
+		fc3 = Linear(256, 256, RELU, rand_state);
+		q_out = Linear(256, 1, NONE, rand_state);
+		
+		
+		__shared__ GradientDescent *new_d_ptr;
+                if (threadIdx.x == 0) {
+                        new_d_ptr = new GradientDescent(this->parameters(), 8, 0.00001);
+                }
+                __syncthreads();
+                this->optim = new_d_ptr;
+		__syncthreads();
+		// this->optim = new GradientDescent(this->parameters(), 0.00001);
 	};
 
-	~Critic() {
+	Critic(int obs, int goal, int action, Tensor &max_action) {
+                this->max_action = max_action;
+
+		fc1 = Linear(obs + goal + action, 256, RELU);
+		fc2 = Linear(256, 256, RELU);
+		fc3 = Linear(256, 256, RELU);
+		q_out = Linear(256, 1, NONE);
+
+                //this->optim = new Adam(this->parameters(), 0.00001);
+                this->optim = new GradientDescent(this->parameters(), 8, 0.00001);
+        };
+	
+
+	__host__ __device__ ~Critic() {
+#ifdef __CUDA_ARCH__
+		if (threadIdx.x == 0) {
+			delete this->optim;
+		}
+#else
 		delete this->optim;
+#endif
 	}
 
-	Tensor& forward(const Tensor &x, const Tensor &actions) {
+	__host__ __device__ Tensor& forward(const Tensor &x, const Tensor &actions) {
 		actions.copy(_adjusted_actions);
 		_adjusted_actions.div_(max_action);
 		Tensor::vector_concat_onto(x, _adjusted_actions, _adjusted_in);
@@ -92,7 +125,7 @@ public:
 		return q_out.out();
 	}
 
-	void backprop(const Tensor &actual, const Tensor &predicted) {
+	__host__ __device__ void backprop(const Tensor &actual, const Tensor &predicted) {
 		predicted.copy(_loss_gradient);
 		_loss_gradient.sub_(actual);
 		q_out.compute_gradient(_loss_gradient);
@@ -102,20 +135,17 @@ public:
 		optim->step();
 	}
 
-	vector<Tensor*> parameters() {
-		vector<Tensor*> result;
-		result.push_back(&fc1.weights);
-		result.push_back(&fc1.bias);
-		
-		result.push_back(&fc2.weights);
-		result.push_back(&fc2.bias);
-		
-		result.push_back(&fc3.weights);
-		result.push_back(&fc3.bias);
-		
-		result.push_back(&q_out.weights);
-		result.push_back(&q_out.bias);
-
-		return result;
+	// Only one thread calls this method from the gpu
+	__host__ __device__ Tensor** parameters() {
+		Tensor** out = new Tensor*[8];
+		out[0] = &fc1.weights;
+		out[1] = &fc1.bias;
+		out[2] = &fc2.weights;
+		out[3] = &fc2.bias;
+		out[4] = &fc3.weights;
+		out[5] = &fc3.bias;
+		out[6] = &q_out.weights;
+		out[7] = &q_out.bias;
+		return out;
 	}
 };

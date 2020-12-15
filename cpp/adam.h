@@ -28,8 +28,9 @@ private:
 		Tensor* denom;
 	};
 	
-	vector<Tensor*> params_;
-	vector<Adam_Param_State> state_;
+	int param_len_;
+	Tensor **params_;
+	Adam_Param_State *state_;
 	double lr = 1E-3L;
 	double betas[2] = {0.9L, 0.999L};
 	double eps = 1E-8L;
@@ -42,40 +43,74 @@ public:
 	 * @param params is an iterator of tensors in the order [weight, bias, weight ... ]
 	 * @param lr is the learning rate, default 0.001
 	 */
-	Adam(vector<Tensor*> params, double lr = 1E-3L) {
+	__host__ __device__ Adam(Tensor **params, int param_len, double lr = 1E-3L) {
 		this->params_ = params;
 		this->lr = lr;
+		this->param_len_ = param_len;
+
+#ifdef __CUDA_ARCH__
+		__shared__ Adam_Param_State *new_d_ptr;
+		if (threadIdx.x == 0) {
+			new_d_ptr = new Adam_Param_State[param_len];
+		}
+		__syncthreads();
+		this->state_ = new_d_ptr;
+#else
+		this->state_ = new Adam_Param_State[param_len];
+#endif
 	}
 
 	/**
 	 * Destructor for Adam optimizer
 	 */
-	~Adam() {
-		for (int i = 0; i < this->state_.size(); ++i) {
-			delete this->state_[i].exp_avg;
-			delete this->state_[i].exp_avg_sq;
-			delete this->state_[i].denom;
+	__host__ __device__ ~Adam() {
+#ifdef __CUDA_ARCH__
+		if (threadIdx.x == 0) {
+#endif
+		for (int i = 0; i < param_len_; ++i) {
+			if (this->state_[i].exp_avg != NULL) {
+				delete this->state_[i].exp_avg;
+				delete this->state_[i].exp_avg_sq;
+				delete this->state_[i].denom;
+			}
 		}
+#ifdef __CUDA_ARCH__
+		}
+#endif
 	}
 
 	/**
 	 * Take one Adam step
 	 */
-	void step()  {
-		for (int i = 0; i < this->params_.size(); ++i) {
+	__host__ __device__ void step()  {
+		for (int i = 0; i < param_len_; ++i) {
 			Tensor *param = this->params_[i];
 			if (param->gradient == NULL) {
 				continue;
 			}
 			Tensor *grad = param->gradient;
 
-			// State initialization
-			if(i >= this->state_.size()) {
-				this->state_.push_back({0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)});
+			if(this->state_[i].exp_avg == NULL) {
+#ifdef __CUDA_ARCH__
+				if (threadIdx.x == 0) {
+					this->state_[i] = {0, new Tensor(param->height, param->width    ), new Tensor(param->height, param->width), new Tensor(param->height, param->width)};
+				}
+				__syncthreads();
+#else
+				this->state_[i] = {0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)};
+#endif
 			}
 			Adam_Param_State &state = this->state_[i];
-
+			// TODO this can't be done by all the threads for cuda (but also needs to be read by all the threads shortly after)
+#ifdef __CUDA_ARCH__
+			if (threadIdx.x == 0) {
+				state.step += 1;
+			}
+			__syncthreads();
+#else
 			state.step += 1;
+#endif
+
 			double beta1 = this->betas[0];
 			double beta2 = this->betas[1];
 
@@ -93,7 +128,7 @@ public:
 			state.exp_avg_sq->mul_(beta2).addsquaremul_(*grad, 1 - beta2);
 
 			// Copy Tensor
-			state.exp_avg_sq->copy(*state.denom);
+			state.exp_avg_sq->copy(*(state.denom));
 
 			// Compute v-hat
 			// 2.3e+7 without
@@ -105,7 +140,6 @@ public:
 			// Intead of allocating and calculating m-hat like they do in the pseudocode
 			// 1.78e+7 without
 			param->addcdiv_(*state.exp_avg, *state.denom, -this->lr / bias_correction1);
-
 			// 2.45e+07 with everything in place.
 		}
 	}
