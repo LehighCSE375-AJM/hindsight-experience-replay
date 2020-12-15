@@ -1,7 +1,7 @@
 program_NAME := learn
 
 SRCS = learn.cpp
-CU_SRCS = test.cu
+CU_SRCS = learn.cu
 
 ALL_HDRS = $(wildcard *.h)
 CUDA_HDRS = $(wildcard cuda_*.h)
