@@ -32,7 +32,7 @@ __global__ void cudaLearn(unsigned long seed) {
 		out = c.forward(in, actions);
 		if (threadIdx.x == 0) {
 			if (i % 10 == 0) {
-				printf("2 * (%g + %g + %g) = %g =? %g\n", in.values[0], in.values[1], actions.values[0], expected.values[0], out.values[0]);
+			//	printf("2 * (%g + %g + %g) = %g =? %g\n", in.values[0], in.values[1], actions.values[0], expected.values[0], out.values[0]);
 			}
 		}
 		c.backprop(expected, out);

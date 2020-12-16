@@ -10,7 +10,7 @@
 #include "cuda_utils.h"
 #include "math.h"
 
-#define THREADS 32
+#define THREADS 1
 
 using namespace std;
 
@@ -33,7 +33,7 @@ private:
 		// This is some fancy code to make sure all the threads point to the same matrix values
 		__shared__ double *new_d_ptr;
 		if (threadIdx.x == 0) {
-			printf("Updated output tensor\n");
+			// printf("Updated output tensor\n");
 			new_d_ptr = new double[height * width];
 			// May want to zero values? idk
 		}
