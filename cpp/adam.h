@@ -49,12 +49,14 @@ public:
 		this->param_len_ = param_len;
 
 #ifdef __CUDA_ARCH__
-		__shared__ Adam_Param_State *new_d_ptr;
-		if (threadIdx.x == 0) {
-			new_d_ptr = new Adam_Param_State[param_len];
-		}
-		__syncthreads();
-		this->state_ = new_d_ptr;
+		//__shared__ Adam_Param_State *new_d_ptr;
+		//if (threadIdx.x == 0) {
+		//	new_d_ptr = new Adam_Param_State[param_len];
+		//}
+		//__syncthreads();
+		//this->state_ = new_d_ptr;
+		// Constructor only called by one thread. 
+		this->state_ = new Adam_Param_State[param_len];
 #else
 		this->state_ = new Adam_Param_State[param_len];
 #endif
@@ -80,7 +82,7 @@ public:
 	}
 
 	/**
-	 * Take one Adam step
+	 * That's one small step for Adam, one giant leap for Adamkind.
 	 */
 	__host__ __device__ void step()  {
 		for (int i = 0; i < param_len_; ++i) {
@@ -92,8 +94,12 @@ public:
 
 			if(this->state_[i].exp_avg == NULL) {
 #ifdef __CUDA_ARCH__
+				// This is sort of gross, but if we initialize tensor in the if statement __syncthreads fails. 
+				Tensor *t1 = new Tensor(param->height, param->width);
+				Tensor *t2 = new Tensor(param->height, param->width);
+				Tensor *t3 = new Tensor(param->height, param->width);
 				if (threadIdx.x == 0) {
-					this->state_[i] = {0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)};
+					this->state_[i] = {0, t1, t2, t3};
 				}
 				__syncthreads();
 #else
