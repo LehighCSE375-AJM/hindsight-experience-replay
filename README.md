@@ -67,6 +67,22 @@ Logs duration to train model to cuda_bench.txt file. (if there are any errors wh
 ```
 Logs duration to train model to parallel_bench.txt file. (also redirects any errors to that file too) I've found that on my Jetson running with one thread occupies all the cpus on my Jetson (likely due to built in torch parallelism) so thats something to be aware of (increasing threads significantly slowed training down for me)
 
+## Custom Implementation
+#### Sequential Version
+```bash
+cd cpp
+make learn
+time ./learn
+```
+
+#### Cuda Version
+After running the docker container
+```bash
+cd cuda
+make cuda_learn
+time ./cuda_learn
+```
+
 
 ### Download the Pre-trained Model
 Please download them from the [Google Driver](https://drive.google.com/open?id=1dNzIpIcL4x1im8dJcUyNO30m_lhzO9K4), then put the `saved_models` under the current folder.
