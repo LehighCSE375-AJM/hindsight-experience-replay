@@ -63,7 +63,7 @@ private:
 	Linear q_out;
 	Tensor max_action;
 	// Only an Adam optimizer since we don't have to use virtual functions this way (which I believe are fairly slow, but not certain)
-	GradientDescent* optim;
+	Adam* optim;
 
 	// Miscelanious intermediate matricies. 
 	Tensor _adjusted_actions;
@@ -81,9 +81,10 @@ public:
 		q_out = Linear(256, 1, NONE, rand_state);
 		
 		
-		__shared__ GradientDescent *new_d_ptr;
+		__shared__ Adam *new_d_ptr;
                 if (threadIdx.x == 0) {
-                        new_d_ptr = new GradientDescent(this->parameters(), 8, 0.00001);
+                        new_d_ptr = new Adam(this->parameters(), 8, 0.001);
+			//new_d_ptr = new GradientDescent(this->parameters(), 8, 0.00001);
                 }
                 __syncthreads();
                 this->optim = new_d_ptr;
@@ -99,8 +100,8 @@ public:
 		fc3 = Linear(256, 256, RELU);
 		q_out = Linear(256, 1, NONE);
 
-                //this->optim = new Adam(this->parameters(), 0.00001);
-                this->optim = new GradientDescent(this->parameters(), 8, 0.00001);
+                this->optim = new Adam(this->parameters(), 8, 0.00001);
+                //this->optim = new GradientDescent(this->parameters(), 8, 0.00001);
         };
 	
 

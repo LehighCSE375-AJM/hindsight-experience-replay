@@ -93,7 +93,7 @@ public:
 			if(this->state_[i].exp_avg == NULL) {
 #ifdef __CUDA_ARCH__
 				if (threadIdx.x == 0) {
-					this->state_[i] = {0, new Tensor(param->height, param->width    ), new Tensor(param->height, param->width), new Tensor(param->height, param->width)};
+					this->state_[i] = {0, new Tensor(param->height, param->width), new Tensor(param->height, param->width), new Tensor(param->height, param->width)};
 				}
 				__syncthreads();
 #else

@@ -395,7 +395,7 @@ public:
 #ifdef __CUDA_ARCH__
 		int i = threadIdx.x;
 		while (i < height * width) {
-			this->values[i] *= std::sqrt(this->values[i]);
+			this->values[i] = std::sqrt(this->values[i]);
 			i += blockDim.x;
 		}
 #else
@@ -485,7 +485,7 @@ public:
 #ifdef __CUDA_ARCH__
 		int i = threadIdx.x;
                 while (i < height * width) {
-                        this->values[i] += std::pow(m.values[i], 2) * val;
+                        this->values[i] += val * m.values[i] * m.values[i];
                         i += blockDim.x;
                 }
 #else
