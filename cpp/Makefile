@@ -10,7 +10,7 @@ MAIN_HDRS := $(filter-out $(CUDA_HDRS), $(ALL_HDRS))
 OBJS := ${SRCS:.c=.o}
 
 # CFLAGS = -O3 -g -G -Xptxas -v -lopenblas
-CFLAGS = -O3 -g -lopenblas
+CFLAGS = -O3 -lopenblas
 
 program_INCLUDE_DIRS := ${OPENBLAS_DIR}
 
